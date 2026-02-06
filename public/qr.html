@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Seminar QR</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans JP",sans-serif;margin:0;padding:14px;}
+    .row{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;}
+    .card{border:1px solid #ddd;border-radius:12px;padding:12px;min-width:320px;max-width:520px;}
+    h1{font-size:18px;margin:0 0 10px;}
+    h2{font-size:14px;margin:0 0 8px;}
+    .muted{color:#666;font-size:12px;}
+    input{padding:8px 10px;border:1px solid #ccc;border-radius:10px;}
+    button{padding:8px 10px;border:1px solid #ccc;border-radius:10px;background:#fff;cursor:pointer;}
+    img{width:280px;height:280px;border:1px solid #eee;border-radius:10px;background:#fff;}
+    .url{word-break:break-all;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;}
+  </style>
+</head>
+<body>
+  <h1>Seminar QR</h1>
+  <div class="muted">同じWi-Fi上で、受講者にQRを見せてアクセスさせる用です。</div>
+
+  <div style="margin-top:10px;">
+    <label class="muted">Room:</label>
+    <input id="room" value="demo" />
+    <button id="update">更新</button>
+    <span class="muted" style="margin-left:8px;">例: g1 / g2 / demo</span>
+  </div>
+
+  <div class="row" style="margin-top:14px;">
+    <div class="card">
+      <h2>受講者用</h2>
+      <div class="muted">これを読み取ってもらう</div>
+      <div style="margin-top:10px;"><img id="studentImg" alt="student qr"></div>
+      <div class="muted" style="margin-top:10px;">URL</div>
+      <div class="url" id="studentUrl"></div>
+    </div>
+
+    <div class="card">
+      <h2>講師用（ダッシュボード）</h2>
+      <div class="muted">講師PC/別端末で使う</div>
+      <div style="margin-top:10px;"><img id="teacherImg" alt="teacher qr"></div>
+      <div class="muted" style="margin-top:10px;">URL</div>
+      <div class="url" id="teacherUrl"></div>
+    </div>
+  </div>
+
+<script>
+  const qs = new URLSearchParams(location.search);
+  const roomEl = document.getElementById("room");
+  const updateBtn = document.getElementById("update");
+
+  const studentImg = document.getElementById("studentImg");
+  const teacherImg = document.getElementById("teacherImg");
+  const studentUrlEl = document.getElementById("studentUrl");
+  const teacherUrlEl = document.getElementById("teacherUrl");
+
+  roomEl.value = qs.get("room") || roomEl.value;
+
+  function baseOrigin() {
+    return location.origin; // 例: http://192.168.1.23:8787
+  }
+
+  async function qrDataUrl(text) {
+    const res = await fetch(`/api/qr?text=${encodeURIComponent(text)}`);
+    const json = await res.json();
+    if (!res.ok) throw new Error(json?.error || "qr error");
+    return json.dataUrl;
+  }
+
+  async function refresh() {
+    const room = (roomEl.value || "demo").trim();
+    const studentUrl = `${baseOrigin()}/?room=${encodeURIComponent(room)}`;
+    const teacherUrl = `${baseOrigin()}/?role=teacher&room=${encodeURIComponent(room)}`;
+
+    studentUrlEl.textContent = studentUrl;
+    teacherUrlEl.textContent = teacherUrl;
+
+    studentImg.src = await qrDataUrl(studentUrl);
+    teacherImg.src = await qrDataUrl(teacherUrl);
+
+    const nqs = new URLSearchParams(location.search);
+    nqs.set("room", room);
+    history.replaceState(null, "", `${location.pathname}?${nqs.toString()}`);
+  }
+
+  updateBtn.addEventListener("click", refresh);
+  refresh();
+</script>
+</body>
+</html>
