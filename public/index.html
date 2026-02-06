@@ -18,8 +18,13 @@
     .muted { color:#666; font-size: 12px; }
     #logs { white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.35; max-height: 420px; overflow:auto; }
     #students { max-height: 320px; overflow:auto; }
-    .student { padding: 8px 10px; border-bottom: 1px solid #eee; cursor: pointer; }
-    .student:hover { background: #f7f7f7; }
+    .student { padding: 8px 10px; border-bottom: 1px solid #eee; display:flex; align-items:center; gap:10px; }
+    .student:hover { background: #fafafa; }
+    .student-head { flex: 0 0 auto; min-width: 240px; display:flex; justify-content:space-between; align-items:baseline; gap:10px; cursor: pointer; }
+    .student-name { font-weight: 600; }
+    .student-meta { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .student-id { font-size: 11px; color:#888; }
+    .memo-input { flex: 1 1 auto; min-width: 160px; box-sizing:border-box; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.35; padding: 7px 10px; border:1px solid #ddd; border-radius:10px; background:#fff; height: 34px; }
     .pill { font-size: 11px; padding: 2px 6px; border: 1px solid #ddd; border-radius: 999px; color:#333; }
     iframe { width: 100%; height: 260px; border: 0; background:#fff; }
     .danger { color:#a00; }
@@ -179,6 +184,24 @@ console.log('hello');"></textarea>
   const teacherState = new Map(); // clientId -> {name, code, logs, lastSeen}
   let roomNameLocked = false;
   let teacherPopupWin = null;
+  const memoSendTimers = new Map(); // clientId -> timeoutId
+  let memoFocusState = null; // {clientId, selectionStart, selectionEnd, scrollLeft}
+  let isRenderingStudents = false;
+  let isMemoComposing = false;
+  let renderStudentsTimer = null;
+
+  function scheduleRenderStudents() {
+    if (role !== "teacher") return;
+    if (renderStudentsTimer) return;
+    renderStudentsTimer = setTimeout(() => {
+      renderStudentsTimer = null;
+      if (isMemoComposing) {
+        scheduleRenderStudents();
+        return;
+      }
+      renderStudents();
+    }, 80);
+  }
 
   function setStatus(txt) { statusEl.textContent = txt; }
 
@@ -551,24 +574,134 @@ ${safeCode}
   // ---------- Teacher UI render ----------
   function renderStudents() {
     if (role !== "teacher") return;
+    if (!studentsEl) return;
+    isRenderingStudents = true;
+    try {
+
+    const listScrollTop = studentsEl.scrollTop;
+    const active = document.activeElement;
+    const hadMemoFocus = active && active.tagName === "INPUT" && active.dataset && active.dataset.memoFor;
+    if (hadMemoFocus) {
+      memoFocusState = {
+        clientId: active.dataset.memoFor,
+        selectionStart: active.selectionStart,
+        selectionEnd: active.selectionEnd,
+        scrollLeft: active.scrollLeft
+      };
+    } else {
+      memoFocusState = null;
+    }
+
     const arr = [...teacherState.entries()]
       .map(([id, s]) => ({ id, ...s }))
       .sort((a,b) => (b.lastSeen||0) - (a.lastSeen||0));
 
     studentsEl.innerHTML = "";
     for (const s of arr) {
-      const div = document.createElement("div");
-      div.className = "student";
+      const row = document.createElement("div");
+      row.className = "student";
+
+      const head = document.createElement("div");
+      head.className = "student-head";
+
+      const left = document.createElement("div");
+      left.style.display = "flex";
+      left.style.gap = "8px";
+      left.style.alignItems = "baseline";
+
+      const name = document.createElement("span");
+      name.className = "student-name";
+      name.textContent = s.name || "Student";
+
+      const idTag = document.createElement("span");
+      idTag.className = "student-id";
+      idTag.textContent = s.id ? `id: ${s.id}` : "";
+
+      left.appendChild(name);
+      left.appendChild(idTag);
+
+      const right = document.createElement("div");
+      right.className = "student-meta";
       const ago = s.lastSeen ? `${Math.round((Date.now()-s.lastSeen)/1000)}s ago` : "";
-      div.textContent = `${s.name || "Student"}  (${ago})`;
-      div.onclick = () => {
+      if (ago) {
+        const agoEl = document.createElement("span");
+        agoEl.className = "muted";
+        agoEl.textContent = ago;
+        right.appendChild(agoEl);
+      }
+
+      head.appendChild(left);
+      head.appendChild(right);
+
+      head.onclick = () => {
         selectedStudentId = s.id;
         teacherCodeEl.value = s.code || "";
         clearLogsUI();
         (s.logs || []).forEach(line => appendLog(line));
         teacherSelInfo.textContent = `選択: ${s.name || "Student"} / ${s.id}`;
       };
-      studentsEl.appendChild(div);
+
+      const memo = document.createElement("input");
+      memo.type = "text";
+      memo.className = "memo-input";
+      memo.placeholder = "メモ（講師のみ）例）欠席 / PCトラブル / 質問…";
+      memo.dataset.memoFor = s.id;
+      memo.value = String(s.memo || "");
+      // フォーカスが外れているときは常に先頭表示に戻す
+      memo.scrollLeft = 0;
+
+      memo.addEventListener("click", (e) => e.stopPropagation());
+      memo.addEventListener("compositionstart", () => { isMemoComposing = true; });
+      memo.addEventListener("compositionend", () => { isMemoComposing = false; });
+      memo.addEventListener("focus", () => {
+        memoFocusState = {
+          clientId: s.id,
+          selectionStart: memo.selectionStart,
+          selectionEnd: memo.selectionEnd,
+          scrollLeft: memo.scrollLeft
+        };
+      });
+      memo.addEventListener("blur", () => {
+        // 「他の操作に移ったら先頭から見える分だけ」を保証
+        memo.scrollLeft = 0;
+        // 再描画中の blur（要素置換）ではフォーカス復元したいので消さない
+        if (!isRenderingStudents) memoFocusState = null;
+      });
+
+      memo.addEventListener("input", () => {
+        const next = String(memo.value || "").slice(0, 1000); // safety limit
+        if (next !== memo.value) memo.value = next;
+
+        const cur = teacherState.get(s.id) || { logs: [] };
+        cur.memo = next;
+        teacherState.set(s.id, cur);
+
+        if (!ws || ws.readyState !== WebSocket.OPEN) return;
+        const prevTimer = memoSendTimers.get(s.id);
+        if (prevTimer) clearTimeout(prevTimer);
+        memoSendTimers.set(s.id, setTimeout(() => {
+          try {
+            ws.send(JSON.stringify({ type: "memo_update", clientId: s.id, memo: next }));
+          } catch {}
+        }, 350));
+      });
+
+      row.appendChild(head);
+      row.appendChild(memo);
+      studentsEl.appendChild(row);
+    }
+
+    studentsEl.scrollTop = listScrollTop;
+    if (memoFocusState && memoFocusState.clientId) {
+      const el = studentsEl.querySelector(`input[data-memo-for="${memoFocusState.clientId}"]`);
+      if (el) {
+        el.focus();
+        try { el.setSelectionRange(memoFocusState.selectionStart, memoFocusState.selectionEnd); } catch {}
+        el.scrollLeft = memoFocusState.scrollLeft || 0;
+      }
+    }
+    } finally {
+      isRenderingStudents = false;
     }
   }
 
@@ -627,24 +760,30 @@ ${safeCode}
         if (msg.type === "snapshot") {
           teacherState.clear();
           (msg.students || []).forEach(s => teacherState.set(s.clientId, s));
-          renderStudents();
+          scheduleRenderStudents();
+        }
+        if (msg.type === "memo_update") {
+          const s = teacherState.get(msg.clientId) || { logs: [] };
+          s.memo = String(msg.memo || "");
+          teacherState.set(msg.clientId, s);
+          scheduleRenderStudents();
         }
         if (msg.type === "name_update") {
           const s = teacherState.get(msg.clientId) || { logs: [] };
           s.name = msg.name;
           s.lastSeen = msg.lastSeen;
           teacherState.set(msg.clientId, s);
-          renderStudents();
+          scheduleRenderStudents();
         }
         if (msg.type === "student_joined") {
-          teacherState.set(msg.clientId, { name: msg.name, code: "", logs: [], lastSeen: msg.lastSeen });
-          renderStudents();
+          teacherState.set(msg.clientId, { name: msg.name, code: "", logs: [], memo: "", lastSeen: msg.lastSeen });
+          scheduleRenderStudents();
         }
         if (msg.type === "student_left") {
           const s = teacherState.get(msg.clientId) || {};
           s.lastSeen = msg.lastSeen;
           teacherState.set(msg.clientId, s);
-          renderStudents();
+          scheduleRenderStudents();
         }
         if (msg.type === "code_update") {
           const s = teacherState.get(msg.clientId) || { logs: [] };
@@ -656,7 +795,7 @@ ${safeCode}
           if (selectedStudentId === msg.clientId) {
             teacherCodeEl.value = msg.code || "";
           }
-          renderStudents();
+          scheduleRenderStudents();
         }
         if (msg.type === "log") {
           const s = teacherState.get(msg.clientId) || { logs: [] };
@@ -676,7 +815,7 @@ ${safeCode}
             if (selectedStudentId === msg.clientId) appendLog(msg.line);
           }
         
-          renderStudents();
+          scheduleRenderStudents();
         }
         if (msg.type === "clear_logs") {
           const s = teacherState.get(msg.clientId);
@@ -693,7 +832,7 @@ ${safeCode}
               if (selectedStudentId === msg.clientId) clearLogsUI();
             }
         
-            renderStudents();
+            scheduleRenderStudents();
           }
         }
       }
