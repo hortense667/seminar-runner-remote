@@ -16,10 +16,35 @@
  - Node.js 18 以上
  
  ## ローカル起動
- ```bash
- npm install
- npm start
- ```
+このリポジトリの `package.json` は **Railway 用（デフォルト）** です。ローカルで使う場合は、必要に応じて `package.local.json` と入れ替えて使えます。
+
+- `package.railway.json`: Railway 用（デフォルトと同内容のサンプル）
+- `package.local.json`: ローカル用（`npm run dev` を追加）
+
+### ローカル起動（そのままでもOK）
+
+```bash
+npm install
+npm start
+```
+
+### ローカル起動（入れ替えて使う場合）
+
+PowerShell 例:
+
+```powershell
+Copy-Item .\package.local.json .\package.json
+npm install
+npm run dev
+```
+
+Railway 用に戻す（PowerShell 例）:
+
+```powershell
+Copy-Item .\package.railway.json .\package.json
+npm install
+npm start
+```
  
  ブラウザで以下へアクセス:
  - 受講者: `http://localhost:8787/?room=demo`

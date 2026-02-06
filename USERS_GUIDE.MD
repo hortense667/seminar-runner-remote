@@ -50,3 +50,25 @@
  ## 6. Railway に関する注意
  - Railway は **各自で契約して利用** してください
  - アカウント作成・課金・運用は **自己責任** です
+
+## 7. ローカルで動かす場合（講師向け）
+このリポジトリは Node.js サーバが必要です。`package.json` は **Railway 用（デフォルト）** ですが、ローカル利用向けに `package.local.json` のサンプルも同梱しています。
+
+PowerShell 例（ローカル用に入れ替え）:
+
+```powershell
+Copy-Item .\package.local.json .\package.json
+npm install
+npm run dev
+```
+
+ブラウザで以下へアクセス:
+- 受講者: `http://localhost:8787/?room=demo`
+- 講師: `http://localhost:8787/?role=teacher&room=demo`
+- QR: `http://localhost:8787/qr.html?room=demo`
+
+Railway 用に戻す（PowerShell 例）:
+
+```powershell
+Copy-Item .\package.railway.json .\package.json
+```

@@ -27,8 +27,11 @@
     .runner-wrap { border: 1px solid #eee; border-radius: 10px; overflow: hidden; background: #fff; }
     body.maximized { overflow: hidden; }
     body.student-maximized #studentMaxBar { display: flex; }
-    body.student-maximized #studentRunnerWrap { position: fixed; inset: 60px 12px 12px 12px; z-index: 1001; border: 1px solid #ddd; border-radius: 12px; background: #fff; padding: 8px; }
-    body.student-maximized #studentRunnerWrap iframe { height: 100%; }
+    body.teacher-maximized #teacherMaxBar { display: flex; }
+    body.student-maximized #studentRunnerWrap,
+    body.teacher-maximized #teacherRunnerWrap { position: fixed; inset: 60px 12px 12px 12px; z-index: 1001; border: 1px solid #ddd; border-radius: 12px; background: #fff; padding: 8px; }
+    body.student-maximized #studentRunnerWrap iframe,
+    body.teacher-maximized #teacherRunnerWrap iframe { height: 100%; }
     @media (max-width: 980px) { main { grid-template-columns: 1fr; } }
   </style>
 </head>
@@ -37,11 +40,10 @@
   <strong>Seminar JS Runner</strong>
   <span class="pill" id="rolePill"></span>
   <div class="row">
-    <label class="muted">ルーム:</label>
+    <label class="muted">Room:</label>
     <input id="room" value="demo" style="padding:6px 8px;border:1px solid #ccc;border-radius:8px;" />
-    <label class="muted">なまえ:</label>
+    <label class="muted">Name:</label>
     <input id="name" value="" placeholder="任意（例: Tanaka）" style="padding:6px 8px;border:1px solid #ccc;border-radius:8px;" />
-    <span class="muted" id="nameHelp"></span>
     <button class="primary" id="connectBtn">Connect</button>
     <a class="muted" id="qrLink" href="/qr.html?room=demo" target="_blank" rel="noopener">QRページ</a>
   </div>
@@ -60,7 +62,6 @@
           <button id="clearBtn">Logクリア</button>
           <button id="clearCodeBtn">Codeクリア</button>
           <button id="extractBtn">HTML→JS抽出</button>
-          <button id="studentDlBtn">HTMLでDL</button>
           <span class="muted">※ 貼っただけでは実行しません（Runボタンを押す）</span>
         </div>
         <div class="row maximize-bar" id="studentMaxBar">
@@ -80,7 +81,7 @@ console.log('hello');"></textarea>
       <!-- TEACHER -->
       <div id="teacherPane" style="display:none;">
         <div class="row" style="margin-bottom:8px;">
-          <span class="muted">受講者をクリック → コード/ログ参照。実行は「別タブで実行」をスクリーンに映す。</span>
+          <span class="muted">受講者をクリック → コード/ログ参照。投影は「講師プレビュー」をスクリーンに映す。</span>
         </div>
 
         <div class="card" style="border-radius:10px;">
@@ -91,21 +92,28 @@ console.log('hello');"></textarea>
         <div class="row" style="margin-top:10px;">
           <button id="teacherCopyBtn">コードをコピー</button>
           <button id="teacherDlBtn">HTMLでDL</button>
-          <button id="teacherRunPopupBtn">別タブで実行（固まり対策）</button>
-          <button id="teacherClosePopupBtn">別タブを閉じる</button>
+          <button class="primary" id="teacherRunBtn">Run selected（講師で実行）</button>
+          <button id="teacherMaxBtn">実行画面最大化</button>
           <label class="muted" style="display:flex;gap:6px;align-items:center;">
             <input type="checkbox" id="teacherShowAllLogs" checked />
             Logs: 全員（OFFで選択者のみ）
           </label>
-          <label class="muted" style="display:flex;gap:6px;align-items:center;">
-            <input type="checkbox" id="teacherLockName" />
-            名前変更禁止
-          </label>
-          <button id="teacherClearRoomBtn">受講者一覧リセット</button>
           <span class="muted" id="teacherSelInfo"></span>
+        </div>
+        <div class="row maximize-bar" id="teacherMaxBar">
+          <button class="primary" id="teacherRunBtnMax">Run selected（講師で実行）</button>
+          <button id="teacherRestoreBtn">実行画面を元のサイズに戻す</button>
         </div>
 
         <textarea id="teacherCode" readonly></textarea>
+
+        <div class="row" style="margin-top:10px;">
+          <span class="muted">講師プレビュー（投影向け）</span>
+          <span class="muted danger">※ 重い/無限ループのコードで講師PCが固まる可能性あり</span>
+        </div>
+        <div id="teacherRunnerWrap" class="runner-wrap">
+          <iframe id="teacherRunner" sandbox="allow-scripts"></iframe>
+        </div>
       </div>
     </div>
   </section>
@@ -126,7 +134,6 @@ console.log('hello');"></textarea>
 
   const roomEl = document.getElementById("room");
   const nameEl = document.getElementById("name");
-  const nameHelpEl = document.getElementById("nameHelp");
   const connectBtn = document.getElementById("connectBtn");
   const statusEl = document.getElementById("status");
   const qrLink = document.getElementById("qrLink");
@@ -141,7 +148,6 @@ console.log('hello');"></textarea>
   const clearBtn = document.getElementById("clearBtn");
   const clearCodeBtn = document.getElementById("clearCodeBtn");
   const extractBtn = document.getElementById("extractBtn");
-  const studentDlBtn = document.getElementById("studentDlBtn");
   const runner = document.getElementById("runner");
   const logsEl = document.getElementById("logs");
 
@@ -149,12 +155,13 @@ console.log('hello');"></textarea>
   const teacherCodeEl = document.getElementById("teacherCode");
   const teacherCopyBtn = document.getElementById("teacherCopyBtn");
   const teacherDlBtn = document.getElementById("teacherDlBtn");
-  const teacherRunPopupBtn = document.getElementById("teacherRunPopupBtn");
-  const teacherClosePopupBtn = document.getElementById("teacherClosePopupBtn");
+  const teacherRunBtn = document.getElementById("teacherRunBtn");
+  const teacherRunBtnMax = document.getElementById("teacherRunBtnMax");
+  const teacherMaxBtn = document.getElementById("teacherMaxBtn");
+  const teacherRestoreBtn = document.getElementById("teacherRestoreBtn");
   const teacherShowAllLogs = document.getElementById("teacherShowAllLogs");
-  const teacherLockName = document.getElementById("teacherLockName");
-  const teacherClearRoomBtn = document.getElementById("teacherClearRoomBtn");
   const teacherSelInfo = document.getElementById("teacherSelInfo");
+  const teacherRunner = document.getElementById("teacherRunner");
 
   if (role === "teacher") {
     studentPane.style.display = "none";
@@ -172,13 +179,11 @@ console.log('hello');"></textarea>
 
   // remember last room/name
   roomEl.value = localStorage.getItem("seminar_room") || roomEl.value;
-  nameEl.value = filterDisplayName(localStorage.getItem("seminar_name") || nameEl.value);
+  nameEl.value = localStorage.getItem("seminar_name") || nameEl.value;
 
   let ws = null;
   let selectedStudentId = null;
   const teacherState = new Map(); // clientId -> {name, code, logs, lastSeen}
-  let roomNameLocked = false;
-  let teacherPopupWin = null;
 
   function setStatus(txt) { statusEl.textContent = txt; }
 
@@ -188,121 +193,6 @@ console.log('hello');"></textarea>
   }
 
   function clearLogsUI() { logsEl.textContent = ""; }
-
-  function supportsUnicodeProps() {
-    try { new RegExp("\\p{L}", "u"); return true; } catch { return false; }
-  }
-
-  function filterDisplayName(raw) {
-    const text = String(raw || "").normalize("NFKC");
-    // allow: letters/numbers (any script), space, underscore, hyphen, ・, ー
-    const re = supportsUnicodeProps()
-      ? /[^\p{L}\p{N} _\-・ー]/gu
-      : /[^A-Za-z0-9 _\-ぁ-んァ-ヶ\u3400-\u9FFF\uF900-\uFAFF・ー]/g;
-    let out = text.replace(re, "");
-    out = out.replace(/\s+/g, " ").trim();
-    if (out.length > 40) out = out.slice(0, 40);
-    return out;
-  }
-
-  function sanitizeForFilename(name) {
-    // Windows forbidden: \ / : * ? " < > | + control chars
-    let out = String(name || "").normalize("NFKC").trim();
-    out = out.replace(/[\\\/:*?"<>|\x00-\x1F]/g, "");
-    out = out.replace(/\s+/g, " ").trim();
-    out = out.replace(/[\. ]+$/g, ""); // no trailing dot/space (Windows)
-    if (!out) out = "student_code";
-    // reserved device names (Windows)
-    const upper = out.toUpperCase();
-    if (/^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(\..*)?$/.test(upper)) out = "_" + out;
-    if (out.length > 80) out = out.slice(0, 80);
-    return out;
-  }
-
-  function timestampForFilename(d = new Date()) {
-    const pad = (n, w = 2) => String(n).padStart(w, "0");
-    const yyyy = d.getFullYear();
-    const mm = pad(d.getMonth() + 1);
-    const dd = pad(d.getDate());
-    const hh = pad(d.getHours());
-    const mi = pad(d.getMinutes());
-    const ss = pad(d.getSeconds());
-    const ms = pad(d.getMilliseconds(), 3);
-    return `${yyyy}${mm}${dd}_${hh}${mi}${ss}_${ms}`;
-  }
-
-  function applyNameLock() {
-    const locked = !!roomNameLocked;
-    if (nameEl) nameEl.disabled = locked;
-    if (nameHelpEl) nameHelpEl.textContent = locked ? "（講師が名前変更を禁止中）" : "";
-  }
-
-  function openPopupRunner(kind, code, title) {
-    const w = window.open("", "_blank", "width=980,height=720");
-    if (!w) {
-      appendLog("[warn] 別タブ（ポップアップ）を開けませんでした。ブラウザのポップアップブロック設定をご確認ください。");
-      return null;
-    }
-    const safeTitle = String(title || "Runner");
-    const html = `<!doctype html><html lang="ja"><head><meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${safeTitle}</title>
-<style>
-  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans JP",sans-serif;margin:0;padding:12px;}
-  .muted{color:#666;font-size:12px;}
-  pre{white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.35;border:1px solid #eee;border-radius:10px;padding:10px;max-height:40vh;overflow:auto;}
-</style>
-</head><body>
-<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
-  <strong>${safeTitle}</strong>
-  <span class="muted">（無限ループなどで固まったら、このタブを閉じてください）</span>
-</div>
-<pre id="log"></pre>
-<script>
-(function(){
-  const logEl = document.getElementById("log");
-  const send = (level, args) => {
-    try {
-      window.opener && window.opener.postMessage({__popup_runner:true, kind:${JSON.stringify(kind)}, level, args}, "*");
-    } catch(e) {}
-  };
-  const append = (level, args) => {
-    try {
-      const line = "[" + level + "] " + (args||[]).map(a => {
-        try { return (typeof a === "string") ? a : JSON.stringify(a); } catch(e){ return String(a); }
-      }).join(" ");
-      logEl.textContent += line + "\\n";
-      logEl.scrollTop = logEl.scrollHeight;
-    } catch(e) {}
-  };
-  const wrap = (fnName) => {
-    const orig = console[fnName];
-    console[fnName] = (...args) => {
-      send(fnName, args);
-      append(fnName, args);
-      orig && orig.apply(console, args);
-    };
-  };
-  ["log","info","warn","error"].forEach(wrap);
-  window.addEventListener("error", (e) => {
-    send("error", [String(e.message || e.error || e)]);
-    append("error", [String(e.message || e.error || e)]);
-  });
-  window.addEventListener("unhandledrejection", (e) => {
-    send("error", [String(e.reason || e)]);
-    append("error", [String(e.reason || e)]);
-  });
-})();
-<\/script>
-<script>
-${code}
-<\/script>
-</body></html>`;
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
-    return w;
-  }
 
   // ---------- Student runner (sandbox iframe, console forwarding to parent -> WS) ----------
   function runStudentCode(code) {
@@ -336,18 +226,6 @@ ${code}
   }
 
   window.addEventListener("message", (ev) => {
-    // popup runner log
-    if (ev.data && ev.data.__popup_runner) {
-      const { kind, level, args } = ev.data;
-      if (kind === "teacher" && role === "teacher") {
-        const line = `[teacher:${level}] ` + (args || []).map(a => {
-          try { return typeof a === "string" ? a : JSON.stringify(a); } catch { return String(a); }
-        }).join(" ");
-        appendLog(line);
-        return;
-      }
-    }
-
     // student preview log -> send to server
     if (ev.data && ev.data.__runner && role === "student") {
       if (ev.data.type === "log") {
@@ -363,7 +241,14 @@ ${code}
       return;
     }
 
-    // teacher iframe preview log (removed)
+    // teacher preview log (local only)
+    if (ev.data && ev.data.__teacher_runner && role === "teacher") {
+      const { level, args } = ev.data;
+      const line = `[teacher:${level}] ` + (args || []).map(a => {
+        try { return typeof a === "string" ? a : JSON.stringify(a); } catch { return String(a); }
+      }).join(" ");
+      appendLog(line);
+    }
   });
 
   // ---------- Runボタンのみ運用 ----------
@@ -372,17 +257,6 @@ ${code}
     if (role !== "student") return;
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
     ws.send(JSON.stringify({ type: "code_update", code: codeEl.value }));
-  });
-
-  // name: filename-safe-ish characters only + (if connected) share update
-  nameEl?.addEventListener("input", () => {
-    const filtered = filterDisplayName(nameEl.value);
-    if (filtered !== nameEl.value) nameEl.value = filtered;
-    localStorage.setItem("seminar_name", nameEl.value);
-    if (role !== "student") return;
-    if (roomNameLocked) return;
-    if (!ws || ws.readyState !== WebSocket.OPEN) return;
-    ws.send(JSON.stringify({ type: "name_update", name: (nameEl.value || "").trim() }));
   });
 
   function runStudent() {
@@ -455,25 +329,14 @@ ${code}
 
     appendLog("[info] HTMLからJSを抽出しました（Runで実行してください）");
   });
-
-  // ---------- Student: download HTML from current code ----------
-  studentDlBtn?.addEventListener("click", () => {
-    if (role !== "student") return;
-    const code = codeEl.value || "";
-    if (!code.trim()) return;
-    const base = `code_${timestampForFilename()}`;
-    downloadHtmlFromCode(code, base);
-  });
-
 // ---------- Teacher: download HTML from selected student's code ----------
   function downloadHtmlFromCode(code, filenameBase = "student_code") {
-    const safe = sanitizeForFilename(filenameBase || "student_code");
-    const safeCode = String(code || "").replace(/<\/script>/gi, "<\\/script>");
+    const safe = (filenameBase || "student_code").replace(/[^\w\-]+/g, "_");
     const html = `<!doctype html><html lang="ja"><meta charset="utf-8">
 <title>${safe}</title>
 <body>
 <script>
-${safeCode}
+${code}
 <\/script>
 </body></html>`;
     const blob = new Blob([html], { type: "text/html" });
@@ -500,43 +363,45 @@ ${safeCode}
     downloadHtmlFromCode(code, base);
   });
 
-  // ---------- Teacher: run preview removed (use popup) ----------
+  // ---------- Teacher: run preview (for projection) ----------
+  function runTeacherPreview(code) {
+    const srcdoc = `
+<!doctype html><html><head><meta charset="utf-8"></head><body>
+<script>
+(function(){
+  const wrap = (fnName) => {
+    const orig = console[fnName];
+    console[fnName] = (...args) => {
+      try { parent.postMessage({__teacher_runner: true, level: fnName, args}, "*"); } catch(e) {}
+      orig.apply(console, args);
+    };
+  };
+  ["log","info","warn","error"].forEach(wrap);
+  window.addEventListener("error", (e) => {
+    parent.postMessage({__teacher_runner: true, level:"error", args:[String(e.message || e.error || e)]}, "*");
+  });
+  window.addEventListener("unhandledrejection", (e) => {
+    parent.postMessage({__teacher_runner: true, level:"error", args:[String(e.reason || e)]}, "*");
+  });
+})();
+<\/script>
+<script>
+${code}
+<\/script>
+</body></html>`;
+    teacherRunner.srcdoc = srcdoc;
+  }
 
-  teacherRunPopupBtn?.addEventListener("click", () => {
+  function runTeacher() {
     if (role !== "teacher") return;
     const code = teacherCodeEl.value || "";
     if (!code.trim()) return;
     clearLogsUI();
-    if (teacherPopupWin && !teacherPopupWin.closed) {
-      try { teacherPopupWin.close(); } catch {}
-    }
-    teacherPopupWin = openPopupRunner("teacher", code, "Teacher Runner (popup)");
-  });
+    runTeacherPreview(code);
+  }
 
-  teacherClosePopupBtn?.addEventListener("click", () => {
-    if (teacherPopupWin && !teacherPopupWin.closed) {
-      try { teacherPopupWin.close(); } catch {}
-    }
-    teacherPopupWin = null;
-  });
-
-  teacherLockName?.addEventListener("change", () => {
-    if (role !== "teacher") return;
-    if (!ws || ws.readyState !== WebSocket.OPEN) return;
-    ws.send(JSON.stringify({ type: "set_name_lock", locked: !!teacherLockName.checked }));
-  });
-
-  teacherClearRoomBtn?.addEventListener("click", () => {
-    if (role !== "teacher") return;
-    if (!ws || ws.readyState !== WebSocket.OPEN) return;
-    const ok = confirm("受講者一覧をリセットします。\nこの部屋のコード/ログのサーバ保持分が削除されます。\nよろしいですか？");
-    if (!ok) return;
-    selectedStudentId = null;
-    teacherCodeEl.value = "";
-    teacherSelInfo.textContent = "（リセット中）";
-    clearLogsUI();
-    ws.send(JSON.stringify({ type: "clear_room" }));
-  });
+  teacherRunBtn?.addEventListener("click", runTeacher);
+  teacherRunBtnMax?.addEventListener("click", runTeacher);
 
   function setMaximized(kind, on) {
     document.body.classList.toggle("maximized", on);
@@ -546,7 +411,8 @@ ${safeCode}
   studentMaxBtn?.addEventListener("click", () => setMaximized("student", true));
   studentRestoreBtn?.addEventListener("click", () => setMaximized("student", false));
 
-  // teacher maximize removed (popup is projection-friendly)
+  teacherMaxBtn?.addEventListener("click", () => setMaximized("teacher", true));
+  teacherRestoreBtn?.addEventListener("click", () => setMaximized("teacher", false));
 
   // ---------- Teacher UI render ----------
   function renderStudents() {
@@ -575,7 +441,6 @@ ${safeCode}
   // ---------- WS connect ----------
   function connect() {
     const room = (roomEl.value || "demo").trim();
-    if (nameEl) nameEl.value = filterDisplayName(nameEl.value);
     const name = (nameEl.value || "").trim() || (role === "teacher" ? "Teacher" : "Student");
     localStorage.setItem("seminar_room", room);
     localStorage.setItem("seminar_name", name);
@@ -605,35 +470,10 @@ ${safeCode}
       let msg;
       try { msg = JSON.parse(ev.data); } catch { return; }
 
-      if (msg.type === "room_state") {
-        roomNameLocked = !!msg.nameLock;
-        applyNameLock();
-        if (role === "teacher" && teacherLockName) {
-          teacherLockName.checked = !!roomNameLocked;
-        }
-        return;
-      }
-
-      if (msg.type === "name_update_rejected" && role === "student") {
-        if (msg.reason === "locked") {
-          roomNameLocked = true;
-          applyNameLock();
-          appendLog("[warn] 講師が名前変更を禁止中のため、名前変更は反映されませんでした。");
-        }
-        return;
-      }
-
       if (role === "teacher") {
         if (msg.type === "snapshot") {
           teacherState.clear();
           (msg.students || []).forEach(s => teacherState.set(s.clientId, s));
-          renderStudents();
-        }
-        if (msg.type === "name_update") {
-          const s = teacherState.get(msg.clientId) || { logs: [] };
-          s.name = msg.name;
-          s.lastSeen = msg.lastSeen;
-          teacherState.set(msg.clientId, s);
           renderStudents();
         }
         if (msg.type === "student_joined") {
