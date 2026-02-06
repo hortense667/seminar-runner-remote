@@ -34,16 +34,32 @@ const wss = new WebSocketServer({ server });
 /**
  * rooms = Map(roomId -> {
  *   students: Map(clientId -> { name, code, logs: string[], lastSeen }),
- *   teachers: Set(ws)
+ *   teachers: Set(ws),
+ *   sockets: Set(ws),
+ *   nameLock: boolean
  * })
  */
 const rooms = new Map();
 
+// Remove inactive students automatically (ms)
+const STUDENT_TTL_MS = Number(process.env.STUDENT_TTL_MS || 1000 * 60 * 60 * 6); // default 6 hours
+const CLEANUP_INTERVAL_MS = Number(process.env.CLEANUP_INTERVAL_MS || 1000 * 60); // default 60s
+
 function getRoom(roomId) {
   if (!rooms.has(roomId)) {
-    rooms.set(roomId, { students: new Map(), teachers: new Set() });
+    rooms.set(roomId, { students: new Map(), teachers: new Set(), sockets: new Set(), nameLock: false });
   }
   return rooms.get(roomId);
+}
+
+function buildStudentsSnapshot(room) {
+  return [...room.students.entries()].map(([id, s]) => ({
+    clientId: id,
+    name: s.name,
+    code: s.code || "",
+    logs: s.logs || [],
+    lastSeen: s.lastSeen || Date.now()
+  }));
 }
 
 function broadcastToTeachers(roomId, msgObj) {
@@ -54,6 +70,37 @@ function broadcastToTeachers(roomId, msgObj) {
     if (ws.readyState === ws.OPEN) ws.send(data);
   }
 }
+
+function broadcastToRoom(roomId, msgObj) {
+  const room = rooms.get(roomId);
+  if (!room) return;
+  const data = JSON.stringify(msgObj);
+  for (const ws of room.sockets) {
+    if (ws.readyState === ws.OPEN) ws.send(data);
+  }
+}
+
+function broadcastSnapshotToTeachers(roomId) {
+  const room = rooms.get(roomId);
+  if (!room) return;
+  broadcastToTeachers(roomId, { type: "snapshot", room: roomId, students: buildStudentsSnapshot(room) });
+}
+
+// Periodic cleanup for inactive students
+setInterval(() => {
+  const now = Date.now();
+  for (const [roomId, room] of rooms.entries()) {
+    let changed = false;
+    for (const [clientId, s] of room.students.entries()) {
+      const last = Number(s?.lastSeen || 0);
+      if (last && now - last > STUDENT_TTL_MS) {
+        room.students.delete(clientId);
+        changed = true;
+      }
+    }
+    if (changed) broadcastSnapshotToTeachers(roomId);
+  }
+}, CLEANUP_INTERVAL_MS).unref?.();
 
 wss.on("connection", (ws) => {
   ws.roomId = null;
@@ -81,17 +128,14 @@ wss.on("connection", (ws) => {
       const room = getRoom(roomId);
 
       if (role === "teacher") {
+        room.sockets.add(ws);
         room.teachers.add(ws);
-        const students = [...room.students.entries()].map(([id, s]) => ({
-          clientId: id,
-          name: s.name,
-          code: s.code || "",
-          logs: s.logs || [],
-          lastSeen: s.lastSeen || Date.now()
-        }));
+        const students = buildStudentsSnapshot(room);
         ws.send(JSON.stringify({ type: "snapshot", room: roomId, students }));
+        ws.send(JSON.stringify({ type: "room_state", room: roomId, nameLock: !!room.nameLock }));
       } else {
         if (!clientId) return;
+        room.sockets.add(ws);
         const prev = room.students.get(clientId);
         room.students.set(clientId, {
           name,
@@ -105,12 +149,48 @@ wss.on("connection", (ws) => {
           name,
           lastSeen: Date.now()
         });
+        ws.send(JSON.stringify({ type: "room_state", room: roomId, nameLock: !!room.nameLock }));
       }
       return;
     }
 
     if (!ws.roomId) return;
     const room = getRoom(ws.roomId);
+
+    if (msg.type === "clear_room" && ws.role === "teacher") {
+      room.students.clear();
+      // optionally also unlock name changes on clear
+      room.nameLock = false;
+      broadcastToRoom(ws.roomId, { type: "room_state", room: ws.roomId, nameLock: !!room.nameLock });
+      broadcastSnapshotToTeachers(ws.roomId);
+      return;
+    }
+
+    if (msg.type === "set_name_lock" && ws.role === "teacher") {
+      room.nameLock = !!msg.locked;
+      broadcastToRoom(ws.roomId, { type: "room_state", room: ws.roomId, nameLock: !!room.nameLock });
+      return;
+    }
+
+    if (msg.type === "name_update" && ws.role === "student") {
+      const clientId = ws.clientId;
+      if (!clientId) return;
+      if (room.nameLock) {
+        ws.send(JSON.stringify({ type: "name_update_rejected", reason: "locked" }));
+        return;
+      }
+      const s = room.students.get(clientId) || { name: "Student", code: "", logs: [], lastSeen: Date.now() };
+      s.name = String(msg.name || "").trim() || s.name || "Student";
+      s.lastSeen = Date.now();
+      room.students.set(clientId, s);
+      broadcastToTeachers(ws.roomId, {
+        type: "name_update",
+        clientId,
+        name: s.name,
+        lastSeen: s.lastSeen
+      });
+      return;
+    }
 
     if (msg.type === "code_update" && ws.role === "student") {
       const clientId = ws.clientId;
@@ -182,6 +262,7 @@ wss.on("connection", (ws) => {
         });
       }
     }
+    room.sockets.delete(ws);
   });
 });
 
