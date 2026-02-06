@@ -33,7 +33,7 @@ const wss = new WebSocketServer({ server });
 
 /**
  * rooms = Map(roomId -> {
- *   students: Map(clientId -> { name, code, logs: string[], lastSeen }),
+ *   students: Map(clientId -> { name, code, logs: string[], memo?: string, lastSeen }),
  *   teachers: Set(ws),
  *   sockets: Set(ws),
  *   nameLock: boolean
@@ -58,6 +58,7 @@ function buildStudentsSnapshot(room) {
     name: s.name,
     code: s.code || "",
     logs: s.logs || [],
+    memo: s.memo || "",
     lastSeen: s.lastSeen || Date.now()
   }));
 }
@@ -141,6 +142,7 @@ wss.on("connection", (ws) => {
           name,
           code: prev?.code || "",
           logs: prev?.logs || [],
+          memo: prev?.memo || "",
           lastSeen: Date.now()
         });
         broadcastToTeachers(roomId, {
@@ -169,6 +171,21 @@ wss.on("connection", (ws) => {
     if (msg.type === "set_name_lock" && ws.role === "teacher") {
       room.nameLock = !!msg.locked;
       broadcastToRoom(ws.roomId, { type: "room_state", room: ws.roomId, nameLock: !!room.nameLock });
+      return;
+    }
+
+    if (msg.type === "memo_update" && ws.role === "teacher") {
+      const clientId = String(msg.clientId || "").trim();
+      if (!clientId) return;
+      const s = room.students.get(clientId);
+      if (!s) return;
+
+      let memo = String(msg.memo || "");
+      if (memo.length > 1000) memo = memo.slice(0, 1000);
+      s.memo = memo;
+      room.students.set(clientId, s);
+
+      broadcastToTeachers(ws.roomId, { type: "memo_update", clientId, memo });
       return;
     }
 
