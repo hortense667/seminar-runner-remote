@@ -1,0 +1,519 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Seminar JS Runner</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans JP", sans-serif; margin: 0; }
+    header { padding: 12px 16px; border-bottom: 1px solid #ddd; display:flex; gap:12px; align-items:center; flex-wrap: wrap;}
+    main { display: grid; grid-template-columns: 1fr 420px; gap: 12px; padding: 12px; }
+    textarea { width: 100%; min-height: 320px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; padding: 10px; box-sizing: border-box; }
+    .card { border: 1px solid #ddd; border-radius: 10px; overflow: hidden; }
+    .card h3 { margin: 0; padding: 10px 12px; border-bottom: 1px solid #eee; font-size: 14px; background: #fafafa;}
+    .card .content { padding: 10px 12px; }
+    button { padding: 8px 10px; border-radius: 8px; border: 1px solid #ccc; background: #fff; cursor: pointer; }
+    button.primary { background: #111; color: #fff; border-color: #111; }
+    .row { display:flex; gap:8px; align-items:center; flex-wrap: wrap;}
+    .muted { color:#666; font-size: 12px; }
+    #logs { white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.35; max-height: 420px; overflow:auto; }
+    #students { max-height: 320px; overflow:auto; }
+    .student { padding: 8px 10px; border-bottom: 1px solid #eee; cursor: pointer; }
+    .student:hover { background: #f7f7f7; }
+    .pill { font-size: 11px; padding: 2px 6px; border: 1px solid #ddd; border-radius: 999px; color:#333; }
+    iframe { width: 100%; height: 260px; border: 0; background:#fff; }
+    .danger { color:#a00; }
+    @media (max-width: 980px) { main { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+<header>
+  <strong>Seminar JS Runner</strong>
+  <span class="pill" id="rolePill"></span>
+  <div class="row">
+    <label class="muted">Room:</label>
+    <input id="room" value="demo" style="padding:6px 8px;border:1px solid #ccc;border-radius:8px;" />
+    <label class="muted">Name:</label>
+    <input id="name" value="" placeholder="任意（例: Tanaka）" style="padding:6px 8px;border:1px solid #ccc;border-radius:8px;" />
+    <button class="primary" id="connectBtn">Connect</button>
+    <a class="muted" id="qrLink" href="/qr.html?room=demo" target="_blank" rel="noopener">QRページ</a>
+  </div>
+  <span class="muted" id="status"></span>
+</header>
+
+<main>
+  <section class="card" id="leftCard">
+    <h3 id="leftTitle">コード</h3>
+    <div class="content">
+      <!-- STUDENT -->
+      <div id="studentPane">
+        <div class="row" style="margin-bottom:8px;">
+          <button class="primary" id="runBtn">Run（押したときだけ実行）</button>
+          <button id="clearBtn">Clear logs</button>
+          <button id="clearCodeBtn">Clear code</button>
+          <button id="extractBtn">HTML→JS抽出</button>
+          <span class="muted">※ 貼っただけでは実行しません（Runボタン運用）</span>
+        </div>
+        <textarea id="code" placeholder="// ChatGPTで生成したJSをここに貼り付け
+console.log('hello');"></textarea>
+        <div class="row" style="margin-top:10px;">
+          <span class="muted">実行プレビュー（sandbox iframe）</span>
+        </div>
+        <iframe id="runner" sandbox="allow-scripts"></iframe>
+      </div>
+
+      <!-- TEACHER -->
+      <div id="teacherPane" style="display:none;">
+        <div class="row" style="margin-bottom:8px;">
+          <span class="muted">受講者をクリック → コード/ログ参照。投影は「講師プレビュー」をスクリーンに映す。</span>
+        </div>
+
+        <div class="card" style="border-radius:10px;">
+          <h3>受講者一覧</h3>
+          <div class="content" id="students"></div>
+        </div>
+
+        <div class="row" style="margin-top:10px;">
+          <button id="teacherCopyBtn">コードをコピー</button>
+          <button id="teacherDlBtn">HTMLでDL</button>
+          <button class="primary" id="teacherRunBtn">Run selected（講師で実行）</button>
+          <label class="muted" style="display:flex;gap:6px;align-items:center;">
+            <input type="checkbox" id="teacherAutoRun" />
+            Auto-run（選択中に追従）
+          </label>
+          <label class="muted" style="display:flex;gap:6px;align-items:center;">
+            <input type="checkbox" id="teacherShowAllLogs" checked />
+            Logs: 全員（OFFで選択者のみ）
+          </label>
+          <span class="muted" id="teacherSelInfo"></span>
+        </div>
+
+        <textarea id="teacherCode" readonly></textarea>
+
+        <div class="row" style="margin-top:10px;">
+          <span class="muted">講師プレビュー（投影向け）</span>
+          <span class="muted danger">※ 重い/無限ループのコードで講師PCが固まる可能性あり</span>
+        </div>
+        <iframe id="teacherRunner" sandbox="allow-scripts"></iframe>
+      </div>
+    </div>
+  </section>
+
+  <aside class="card">
+    <h3>Logs</h3>
+    <div class="content">
+      <div id="logs"></div>
+    </div>
+  </aside>
+</main>
+
+<script>
+  const qs = new URLSearchParams(location.search);
+  const role = (qs.get("role") === "teacher") ? "teacher" : "student";
+  const rolePill = document.getElementById("rolePill");
+  rolePill.textContent = role === "teacher" ? "TEACHER" : "STUDENT";
+
+  const roomEl = document.getElementById("room");
+  const nameEl = document.getElementById("name");
+  const connectBtn = document.getElementById("connectBtn");
+  const statusEl = document.getElementById("status");
+  const qrLink = document.getElementById("qrLink");
+
+  const studentPane = document.getElementById("studentPane");
+  const teacherPane = document.getElementById("teacherPane");
+  const codeEl = document.getElementById("code");
+  const runBtn = document.getElementById("runBtn");
+  const clearBtn = document.getElementById("clearBtn");
+  const clearCodeBtn = document.getElementById("clearCodeBtn");
+  const extractBtn = document.getElementById("extractBtn");
+  const runner = document.getElementById("runner");
+  const logsEl = document.getElementById("logs");
+
+  const studentsEl = document.getElementById("students");
+  const teacherCodeEl = document.getElementById("teacherCode");
+  const teacherCopyBtn = document.getElementById("teacherCopyBtn");
+  const teacherDlBtn = document.getElementById("teacherDlBtn");
+  const teacherRunBtn = document.getElementById("teacherRunBtn");
+  const teacherAutoRun = document.getElementById("teacherAutoRun");
+  const teacherShowAllLogs = document.getElementById("teacherShowAllLogs");
+  const teacherSelInfo = document.getElementById("teacherSelInfo");
+  const teacherRunner = document.getElementById("teacherRunner");
+
+  if (role === "teacher") {
+    studentPane.style.display = "none";
+    teacherPane.style.display = "block";
+    document.getElementById("leftTitle").textContent = "講師ダッシュボード";
+  }
+
+  // Persistent clientId per device
+  const clientIdKey = "seminar_client_id_v1";
+  let clientId = localStorage.getItem(clientIdKey);
+  if (!clientId) {
+    clientId = (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(16).slice(2));
+    localStorage.setItem(clientIdKey, clientId);
+  }
+
+  // remember last room/name
+  roomEl.value = localStorage.getItem("seminar_room") || roomEl.value;
+  nameEl.value = localStorage.getItem("seminar_name") || nameEl.value;
+
+  let ws = null;
+  let selectedStudentId = null;
+  const teacherState = new Map(); // clientId -> {name, code, logs, lastSeen}
+
+  function setStatus(txt) { statusEl.textContent = txt; }
+
+  function appendLog(line) {
+    logsEl.textContent += line + "\n";
+    logsEl.scrollTop = logsEl.scrollHeight;
+  }
+
+  function clearLogsUI() { logsEl.textContent = ""; }
+
+  // ---------- Student runner (sandbox iframe, console forwarding to parent -> WS) ----------
+  function runStudentCode(code) {
+    const srcdoc = `
+<!doctype html><html><head><meta charset="utf-8"></head><body>
+<script>
+(function(){
+  const send = (type, payload) => parent.postMessage({__runner: true, type, payload}, "*");
+  const wrap = (fnName) => {
+    const orig = console[fnName];
+    console[fnName] = (...args) => {
+      try { send("log", {level: fnName, args}); } catch(e) {}
+      orig.apply(console, args);
+    };
+  }
+  ;
+  ["log","info","warn","error"].forEach(wrap);
+  window.addEventListener("error", (e) => {
+    send("log", {level:"error", args:[String(e.message || e.error || e)]});
+  });
+  window.addEventListener("unhandledrejection", (e) => {
+    send("log", {level:"error", args:[String(e.reason || e)]});
+  });
+})();
+<\/script>
+<script>
+${code}
+<\/script>
+</body></html>`;
+    runner.srcdoc = srcdoc;
+  }
+
+  window.addEventListener("message", (ev) => {
+    // student preview log -> send to server
+    if (ev.data && ev.data.__runner && role === "student") {
+      if (ev.data.type === "log") {
+        const { level, args } = ev.data.payload || {};
+        const line = `[${level}] ` + (args || []).map(a => {
+          try { return typeof a === "string" ? a : JSON.stringify(a); } catch { return String(a); }
+        }).join(" ");
+        appendLog(line);
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: "log", line }));
+        }
+      }
+      return;
+    }
+
+    // teacher preview log (local only)
+    if (ev.data && ev.data.__teacher_runner && role === "teacher") {
+      const { level, args } = ev.data;
+      const line = `[teacher:${level}] ` + (args || []).map(a => {
+        try { return typeof a === "string" ? a : JSON.stringify(a); } catch { return String(a); }
+      }).join(" ");
+      appendLog(line);
+    }
+  });
+
+  // ---------- Runボタンのみ運用 ----------
+  // inputでは「共有（code_update）」だけ。自動実行しない
+  codeEl?.addEventListener("input", () => {
+    if (role !== "student") return;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({ type: "code_update", code: codeEl.value }));
+  });
+
+  runBtn?.addEventListener("click", () => {
+    if (role !== "student") return;
+    const code = codeEl.value;
+
+    clearLogsUI();
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "code_update", code }));
+      ws.send(JSON.stringify({ type: "clear_logs" }));
+    }
+    runStudentCode(code);
+  });
+
+  clearBtn?.addEventListener("click", () => {
+    clearLogsUI();
+    if (ws && ws.readyState === WebSocket.OPEN && role === "student") {
+      ws.send(JSON.stringify({ type: "clear_logs" }));
+    }
+  });
+
+  
+  // ---------- Clear code (student) ----------
+  clearCodeBtn?.addEventListener("click", () => {
+    if (role !== "student") return;
+
+    codeEl.value = "";
+
+    // share cleared code to teacher
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "code_update", code: "" }));
+    }
+
+    // clear preview
+    runner.srcdoc = '<!doctype html><meta charset="utf-8"><body></body>';
+
+    appendLog("[info] code cleared");
+  });
+
+  // ---------- Extract inline <script> from HTML in code area (student) ----------
+  extractBtn?.addEventListener("click", () => {
+    if (role !== "student") return;
+    const text = codeEl.value || "";
+
+    if (!/<script[\s>]/i.test(text)) {
+      appendLog("[warn] <script> が見つかりません（HTMLを貼ってください）");
+      return;
+    }
+
+    const doc = new DOMParser().parseFromString(text, "text/html");
+    const scripts = Array.from(doc.querySelectorAll("script"))
+      .filter(s => !s.src)
+      .map(s => (s.textContent || "").trim())
+      .filter(Boolean);
+
+    if (!scripts.length) {
+      appendLog("[warn] インラインscriptが見つかりません（src付きは無視します）");
+      return;
+    }
+
+    const js = scripts.join("\n\n");
+    codeEl.value = js;
+
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "code_update", code: js }));
+    }
+
+    appendLog("[info] HTMLからJSを抽出しました（Runで実行してください）");
+  });
+// ---------- Teacher: download HTML from selected student's code ----------
+  function downloadHtmlFromCode(code, filenameBase = "student_code") {
+    const safe = (filenameBase || "student_code").replace(/[^\w\-]+/g, "_");
+    const html = `<!doctype html><html lang="ja"><meta charset="utf-8">
+<title>${safe}</title>
+<body>
+<script>
+${code}
+<\/script>
+</body></html>`;
+    const blob = new Blob([html], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${safe}.html`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  teacherCopyBtn?.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(teacherCodeEl.value || "");
+      teacherSelInfo.textContent = (teacherSelInfo.textContent || "") + " / copied";
+    } catch {}
+  });
+
+  teacherDlBtn?.addEventListener("click", () => {
+    const code = teacherCodeEl.value || "";
+    if (!code.trim()) return;
+    const s = teacherState.get(selectedStudentId) || {};
+    const base = (s.name ? `code_${s.name}` : "student_code");
+    downloadHtmlFromCode(code, base);
+  });
+
+  // ---------- Teacher: run preview (for projection) ----------
+  function runTeacherPreview(code) {
+    const srcdoc = `
+<!doctype html><html><head><meta charset="utf-8"></head><body>
+<script>
+(function(){
+  const wrap = (fnName) => {
+    const orig = console[fnName];
+    console[fnName] = (...args) => {
+      try { parent.postMessage({__teacher_runner: true, level: fnName, args}, "*"); } catch(e) {}
+      orig.apply(console, args);
+    };
+  };
+  ["log","info","warn","error"].forEach(wrap);
+  window.addEventListener("error", (e) => {
+    parent.postMessage({__teacher_runner: true, level:"error", args:[String(e.message || e.error || e)]}, "*");
+  });
+  window.addEventListener("unhandledrejection", (e) => {
+    parent.postMessage({__teacher_runner: true, level:"error", args:[String(e.reason || e)]}, "*");
+  });
+})();
+<\/script>
+<script>
+${code}
+<\/script>
+</body></html>`;
+    teacherRunner.srcdoc = srcdoc;
+  }
+
+  teacherRunBtn?.addEventListener("click", () => {
+    if (role !== "teacher") return;
+    const code = teacherCodeEl.value || "";
+    if (!code.trim()) return;
+    clearLogsUI();
+    runTeacherPreview(code);
+  });
+
+  // ---------- Teacher UI render ----------
+  function renderStudents() {
+    if (role !== "teacher") return;
+    const arr = [...teacherState.entries()]
+      .map(([id, s]) => ({ id, ...s }))
+      .sort((a,b) => (b.lastSeen||0) - (a.lastSeen||0));
+
+    studentsEl.innerHTML = "";
+    for (const s of arr) {
+      const div = document.createElement("div");
+      div.className = "student";
+      const ago = s.lastSeen ? `${Math.round((Date.now()-s.lastSeen)/1000)}s ago` : "";
+      div.textContent = `${s.name || "Student"}  (${ago})`;
+      div.onclick = () => {
+        selectedStudentId = s.id;
+        teacherCodeEl.value = s.code || "";
+        clearLogsUI();
+        (s.logs || []).forEach(line => appendLog(line));
+        teacherSelInfo.textContent = `選択: ${s.name || "Student"} / ${s.id}`;
+
+        // Auto-run enabled -> update projection preview immediately
+        if (teacherAutoRun?.checked) {
+          clearLogsUI();
+          runTeacherPreview(teacherCodeEl.value || "");
+        }
+      };
+      studentsEl.appendChild(div);
+    }
+  }
+
+  // ---------- WS connect ----------
+  function connect() {
+    const room = (roomEl.value || "demo").trim();
+    const name = (nameEl.value || "").trim() || (role === "teacher" ? "Teacher" : "Student");
+    localStorage.setItem("seminar_room", room);
+    localStorage.setItem("seminar_name", name);
+
+    // QR link update
+    if (qrLink) qrLink.href = `/qr.html?room=${encodeURIComponent(room)}`;
+
+    const wsProto = location.protocol === "https:" ? "wss:" : "ws:";
+    ws = new WebSocket(`${wsProto}//${location.host}`);
+    setStatus("Connecting...");
+
+    ws.onopen = () => {
+      setStatus("Connected");
+      ws.send(JSON.stringify({
+        type: "join",
+        role,
+        room,
+        name,
+        clientId: role === "student" ? clientId : null
+      }));
+      if (role === "student") {
+        ws.send(JSON.stringify({ type: "code_update", code: codeEl.value || "" }));
+      }
+    };
+
+    ws.onmessage = (ev) => {
+      let msg;
+      try { msg = JSON.parse(ev.data); } catch { return; }
+
+      if (role === "teacher") {
+        if (msg.type === "snapshot") {
+          teacherState.clear();
+          (msg.students || []).forEach(s => teacherState.set(s.clientId, s));
+          renderStudents();
+        }
+        if (msg.type === "student_joined") {
+          teacherState.set(msg.clientId, { name: msg.name, code: "", logs: [], lastSeen: msg.lastSeen });
+          renderStudents();
+        }
+        if (msg.type === "student_left") {
+          const s = teacherState.get(msg.clientId) || {};
+          s.lastSeen = msg.lastSeen;
+          teacherState.set(msg.clientId, s);
+          renderStudents();
+        }
+        if (msg.type === "code_update") {
+          const s = teacherState.get(msg.clientId) || { logs: [] };
+          s.name = msg.name;
+          s.code = msg.code;
+          s.lastSeen = msg.lastSeen;
+          teacherState.set(msg.clientId, s);
+
+          if (selectedStudentId === msg.clientId) {
+            teacherCodeEl.value = msg.code || "";
+            if (teacherAutoRun?.checked) {
+              clearLogsUI();
+              runTeacherPreview(teacherCodeEl.value || "");
+            }
+          }
+          renderStudents();
+        }
+        if (msg.type === "log") {
+          const s = teacherState.get(msg.clientId) || { logs: [] };
+          s.name = msg.name;
+          s.logs = (s.logs || []).slice(-400);
+          s.logs.push(msg.line);
+          s.lastSeen = msg.lastSeen;
+          teacherState.set(msg.clientId, s);
+        
+          const showAll = teacherShowAllLogs?.checked;
+        
+          if (showAll) {
+            // 全員分を流す（誰のログか分かるように名前を付ける）
+            appendLog(`[${s.name || "Student"}] ${msg.line}`);
+          } else {
+            // 選択者のみ表示（従来仕様）
+            if (selectedStudentId === msg.clientId) appendLog(msg.line);
+          }
+        
+          renderStudents();
+        }
+        if (msg.type === "clear_logs") {
+          const s = teacherState.get(msg.clientId);
+          if (s) {
+            s.logs = [];
+            s.lastSeen = msg.lastSeen;
+            teacherState.set(msg.clientId, s);
+        
+            const showAll = teacherShowAllLogs?.checked;
+        
+            if (showAll) {
+              appendLog(`[${s.name || "Student"}] (logs cleared)`);
+            } else {
+              if (selectedStudentId === msg.clientId) clearLogsUI();
+            }
+        
+            renderStudents();
+          }
+        }
+      }
+    };
+
+    ws.onclose = () => setStatus("Disconnected");
+    ws.onerror = () => setStatus("Error");
+  }
+
+  connectBtn.addEventListener("click", () => connect());
+  connect();
+</script>
+</body>
+</html>

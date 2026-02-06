@@ -1,0 +1,26 @@
+<!doctype html><html lang="ja"><meta charset="utf-8">
+<title>code_Teacher</title>
+<body>
+<script>
+// 30行デモ：近づくと逃げる「押すな」ボタン
+(() => {
+  const b = document.createElement('button');
+  b.textContent = '押すな';
+  Object.assign(b.style, {position:'fixed', left:'50%', top:'50%', transform:'translate(-50%,-50%)', padding:'16px', fontSize:'18px'});
+  document.body.appendChild(b);
+  let x = innerWidth/2, y = innerHeight/2, vx = 0, vy = 0;
+  addEventListener('pointermove', e => {
+    const dx = x - e.clientX, dy = y - e.clientY, d = Math.hypot(dx,dy) || 1;
+    if (d < 120) { vx += dx/d*4; vy += dy/d*4; }
+  }, {passive:true});
+  function tick(){
+    x += vx; y += vy; vx*=0.9; vy*=0.9;
+    x = Math.max(40, Math.min(innerWidth-40, x));
+    y = Math.max(40, Math.min(innerHeight-40, y));
+    b.style.left = x+'px'; b.style.top = y+'px';
+    requestAnimationFrame(tick);
+  }
+  tick();
+})();
+</script>
+</body></html>
