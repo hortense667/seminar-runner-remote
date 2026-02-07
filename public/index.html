@@ -35,6 +35,7 @@
     .tag-off { background:#f1f1f1; border-color:#e1e1e1; color:#777; }
     .tag-done-on { background:#2f6f3a; border-color:#2f6f3a; color:#fff; }
     .tag-question-on { background:#8a6b00; border-color:#8a6b00; color:#fff; }
+    .teacher-info { font-size: 14px; }
     .teacher-msg { font-size: 12px; padding: 6px 10px; border:1px solid #444; border-radius:999px; background:#4a4a4a; color:#fff; max-width: 520px; overflow:hidden; text-overflow: ellipsis; white-space: nowrap; }
     .teacher-msg.empty { display:none; }
     .teacher-msg-input { padding:6px 8px; border:1px solid #ccc; border-radius:999px; min-width: 260px; max-width: 520px; }
@@ -104,6 +105,7 @@
       <!-- STUDENT -->
       <div id="studentPane">
         <div class="row" style="margin-bottom:8px;">
+          <input id="programName" placeholder="プログラム名" style="padding:6px 8px;border:1px solid #ccc;border-radius:8px;min-width:160px;" />
           <button class="primary" id="runBtn">Run（プログラムを動かす）</button>
           <button class="tint-orange" id="studentMaxBtn">実行画面最大化</button>
           <button id="clearBtn">Logクリア</button>
@@ -113,6 +115,7 @@
           <button class="soft" id="helpBtn" title="使い方（USERS_GUIDE）">？</button>
         </div>
         <div class="row maximize-bar" id="studentMaxBar">
+          <span class="muted" id="studentProgramNameMax"></span>
           <button class="primary" id="runBtnMax">Run（プログラムを動かす）</button>
           <button id="studentRestoreBtn">実行画面を元のサイズに戻す</button>
         </div>
@@ -138,12 +141,13 @@ console.log('hello');"></textarea>
         </div>
 
         <div class="row" style="margin-top:10px;">
+          <span class="muted teacher-info" id="teacherProgramName"></span>
           <button id="teacherCopyBtn">コードをコピー</button>
           <button id="teacherDlBtn">HTMLでDL</button>
           <button id="teacherRunPopupBtn">別タブで実行（固まり対策）</button>
           <button id="teacherClosePopupBtn">別タブを閉じる</button>
           <button id="teacherWritebackBtn">Code書き戻し</button>
-          <span class="muted" id="teacherSelInfo"></span>
+          <span class="muted teacher-info" id="teacherSelInfo"></span>
           <span class="pill" id="teacherSelId"></span>
           <button class="soft" id="teacherHelpBtn" title="使い方（USERS_GUIDE）">？</button>
         </div>
@@ -238,11 +242,13 @@ console.log('hello');"></textarea>
 
   const studentPane = document.getElementById("studentPane");
   const teacherPane = document.getElementById("teacherPane");
+  const programNameEl = document.getElementById("programName");
   const codeEl = document.getElementById("code");
   const runBtn = document.getElementById("runBtn");
   const runBtnMax = document.getElementById("runBtnMax");
   const studentMaxBtn = document.getElementById("studentMaxBtn");
   const studentRestoreBtn = document.getElementById("studentRestoreBtn");
+  const studentProgramNameMax = document.getElementById("studentProgramNameMax");
   const clearBtn = document.getElementById("clearBtn");
   const clearCodeBtn = document.getElementById("clearCodeBtn");
   const extractBtn = document.getElementById("extractBtn");
@@ -284,6 +290,7 @@ console.log('hello');"></textarea>
   const teacherSelInfo = document.getElementById("teacherSelInfo");
   const teacherSelId = document.getElementById("teacherSelId");
   const teacherHelpBtn = document.getElementById("teacherHelpBtn");
+  const teacherProgramName = document.getElementById("teacherProgramName");
 
   if (role === "teacher") {
     studentPane.style.display = "none";
@@ -307,6 +314,10 @@ console.log('hello');"></textarea>
   // remember last room/name
   roomEl.value = localStorage.getItem("seminar_room") || roomEl.value;
   nameEl.value = filterDisplayName(localStorage.getItem("seminar_name") || nameEl.value);
+  if (programNameEl) {
+    programNameEl.value = filterDisplayName(localStorage.getItem("seminar_program_name") || "");
+  }
+  updateStudentProgramNameLabels();
 
   let ws = null;
   let selectedStudentId = null;
@@ -375,6 +386,25 @@ console.log('hello');"></textarea>
     if (/^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(\..*)?$/.test(upper)) out = "_" + out;
     if (out.length > 80) out = out.slice(0, 80);
     return out;
+  }
+
+  function updateStudentProgramNameLabels() {
+    if (!studentProgramNameMax) return;
+    const p = filterDisplayName(programNameEl?.value || "");
+    studentProgramNameMax.textContent = p ? `プログラム名: ${p}` : "";
+  }
+
+  function getProgramNameSafe() {
+    const raw = filterDisplayName(programNameEl?.value || "");
+    return raw || "program";
+  }
+
+  function getNameSafe() {
+    return filterDisplayName(nameEl?.value || "") || (role === "teacher" ? "Teacher" : "Student");
+  }
+
+  function getRoomSafe() {
+    return (roomEl?.value || "demo").trim() || "demo";
   }
 
   function timestampForFilename(d = new Date()) {
@@ -656,7 +686,17 @@ ${code}
   codeEl?.addEventListener("input", () => {
     if (role !== "student") return;
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
-    ws.send(JSON.stringify({ type: "code_update", code: codeEl.value }));
+    ws.send(JSON.stringify({ type: "code_update", code: codeEl.value, programName: getProgramNameSafe() }));
+  });
+
+  programNameEl?.addEventListener("input", () => {
+    const filtered = filterDisplayName(programNameEl.value);
+    if (filtered !== programNameEl.value) programNameEl.value = filtered;
+    localStorage.setItem("seminar_program_name", programNameEl.value);
+    updateStudentProgramNameLabels();
+    if (role !== "student") return;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({ type: "program_update", programName: getProgramNameSafe() }));
   });
 
   studentDoneBtn?.addEventListener("click", () => {
@@ -810,7 +850,7 @@ ${code}
 
     clearLogsUI();
     if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: "code_update", code }));
+      ws.send(JSON.stringify({ type: "code_update", code, programName: getProgramNameSafe() }));
       ws.send(JSON.stringify({ type: "clear_logs" }));
     }
     runStudentCode(code);
@@ -880,7 +920,7 @@ ${code}
     if (role !== "student") return;
     const code = codeEl.value || "";
     if (!code.trim()) return;
-    const base = `code_${timestampForFilename()}`;
+    const base = `${getProgramNameSafe()}(${getNameSafe()})(${getRoomSafe()})${timestampForFilename()}`;
     downloadHtmlFromCode(code, base);
   });
 
@@ -915,7 +955,10 @@ ${safeCode}
     const code = teacherCodeEl.value || "";
     if (!code.trim()) return;
     const s = teacherState.get(selectedStudentId) || {};
-    const base = (s.name ? `code_${s.name}` : "student_code");
+    const p = filterDisplayName(s.programName || "") || "program";
+    const n = filterDisplayName(s.name || "") || "Student";
+    const r = (roomEl?.value || "demo").trim() || "demo";
+    const base = `${p}(${n})(${r})${timestampForFilename()}`;
     downloadHtmlFromCode(code, base);
   });
 
@@ -1041,6 +1084,9 @@ ${safeCode}
         (s.logs || []).forEach(line => appendLog(line));
         teacherSelInfo.textContent = `選択: ${s.name || "Student"}`;
         if (teacherSelId) teacherSelId.textContent = s.id ? `id: ${s.id}` : "";
+        if (teacherProgramName) {
+          teacherProgramName.textContent = s.programName ? `プログラム名: ${s.programName}` : "";
+        }
       };
 
       const memo = document.createElement("input");
@@ -1181,7 +1227,7 @@ ${safeCode}
         codeEl.value = code;
         // share to teacher (programmatic set doesn't trigger input event)
         if (ws && ws.readyState === WebSocket.OPEN) {
-          ws.send(JSON.stringify({ type: "code_update", code }));
+          ws.send(JSON.stringify({ type: "code_update", code, programName: getProgramNameSafe() }));
         }
         appendLog("[info] 講師がコードを書き戻しました（自動実行はしません）");
         return;
@@ -1202,6 +1248,13 @@ ${safeCode}
         if (msg.type === "snapshot") {
           teacherState.clear();
           (msg.students || []).forEach(s => teacherState.set(s.clientId, s));
+          scheduleRenderStudents();
+        }
+        if (msg.type === "program_update") {
+          const s = teacherState.get(msg.clientId) || { logs: [] };
+          s.programName = msg.programName || "";
+          s.lastSeen = msg.lastSeen || s.lastSeen;
+          teacherState.set(msg.clientId, s);
           scheduleRenderStudents();
         }
         if (msg.type === "signal_update") {
@@ -1225,7 +1278,7 @@ ${safeCode}
           scheduleRenderStudents();
         }
         if (msg.type === "student_joined") {
-          teacherState.set(msg.clientId, { name: msg.name, code: "", logs: [], memo: "", lastSeen: msg.lastSeen });
+          teacherState.set(msg.clientId, { name: msg.name, code: "", logs: [], memo: "", programName: "", lastSeen: msg.lastSeen });
           scheduleRenderStudents();
         }
         if (msg.type === "student_left") {
@@ -1238,11 +1291,15 @@ ${safeCode}
           const s = teacherState.get(msg.clientId) || { logs: [] };
           s.name = msg.name;
           s.code = msg.code;
+          s.programName = msg.programName || s.programName || "";
           s.lastSeen = msg.lastSeen;
           teacherState.set(msg.clientId, s);
 
           if (selectedStudentId === msg.clientId) {
             teacherCodeEl.value = msg.code || "";
+            if (teacherProgramName) {
+              teacherProgramName.textContent = s.programName ? `プログラム名: ${s.programName}` : "";
+            }
           }
           scheduleRenderStudents();
         }
