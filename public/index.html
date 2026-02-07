@@ -402,6 +402,7 @@ console.log('hello');"></textarea>
       return null;
     }
     const safeTitle = String(title || "Runner");
+    const safeCode = String(code || "").replace(/<\/script>/gi, "<\\/script>");
     const html = `<!doctype html><html lang="ja"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${safeTitle}</title>
@@ -409,6 +410,7 @@ console.log('hello');"></textarea>
   body{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans JP",sans-serif;margin:0;padding:12px;}
   .muted{color:#666;font-size:12px;}
   pre{white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.35;border:1px solid #eee;border-radius:10px;padding:10px;max-height:40vh;overflow:auto;}
+  iframe{width:100%;height:52vh;border:1px solid #eee;border-radius:12px;background:#fff;}
 </style>
 </head><body>
 <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
@@ -416,9 +418,11 @@ console.log('hello');"></textarea>
   <span class="muted">（無限ループなどで固まったら、このタブを閉じてください）</span>
 </div>
 <pre id="log"></pre>
+<iframe id="runFrame" sandbox="allow-scripts"></iframe>
 <script>
 (function(){
   const logEl = document.getElementById("log");
+  const frame = document.getElementById("runFrame");
   const send = (level, args) => {
     try {
       window.opener && window.opener.postMessage({__popup_runner:true, kind:${JSON.stringify(kind)}, level, args}, "*");
@@ -433,27 +437,26 @@ console.log('hello');"></textarea>
       logEl.scrollTop = logEl.scrollHeight;
     } catch(e) {}
   };
-  const wrap = (fnName) => {
-    const orig = console[fnName];
-    console[fnName] = (...args) => {
-      send(fnName, args);
-      append(fnName, args);
-      orig && orig.apply(console, args);
-    };
-  };
-  ["log","info","warn","error"].forEach(wrap);
-  window.addEventListener("error", (e) => {
-    send("error", [String(e.message || e.error || e)]);
-    append("error", [String(e.message || e.error || e)]);
+  window.addEventListener("message", (ev) => {
+    if (!ev.data || !ev.data.__popup_iframe) return;
+    const { level, args } = ev.data;
+    send(level, args);
+    append(level, args);
   });
-  window.addEventListener("unhandledrejection", (e) => {
-    send("error", [String(e.reason || e)]);
-    append("error", [String(e.reason || e)]);
-  });
+  const END = "</scr" + "ipt>";
+  const srcdoc =
+    "<!doctype html><html><head><meta charset=\\"utf-8\\"></head><body>" +
+    "<script>(function(){" +
+      "const sendUp=(level,args)=>parent.postMessage({__popup_iframe:true,level,args},\\"*\\");" +
+      "const wrap=(fn)=>{const o=console[fn];console[fn]=(...a)=>{try{sendUp(fn,a)}catch(e){};o&&o.apply(console,a);};};" +
+      "[\\"log\\",\\"info\\",\\"warn\\",\\"error\\"].forEach(wrap);" +
+      "window.addEventListener(\\"error\\",(e)=>sendUp(\\"error\\",[String(e.message||e.error||e)]));" +
+      "window.addEventListener(\\"unhandledrejection\\",(e)=>sendUp(\\"error\\",[String(e.reason||e)]));" +
+    "})();" + END +
+    "<script>" + ${JSON.stringify(safeCode)} + END +
+    "</body></html>";
+  if (frame) frame.srcdoc = srcdoc;
 })();
-<\/script>
-<script>
-${code}
 <\/script>
 </body></html>`;
     w.document.open();
