@@ -49,7 +49,7 @@ const wss = new WebSocketServer({ server });
 
 /**
  * rooms = Map(roomId -> {
- *   students: Map(clientId -> { name, code, logs: string[], memo?: string, lastSeen }),
+ *   students: Map(clientId -> { name, programName?: string, code, logs: string[], memo?: string, lastSeen }),
  *   teachers: Set(ws),
  *   sockets: Set(ws),
  *   studentSockets: Map(clientId -> Set(ws)),
@@ -97,6 +97,7 @@ function buildStudentsSnapshot(room) {
   return [...room.students.entries()].map(([id, s]) => ({
     clientId: id,
     name: s.name,
+    programName: s.programName || "",
     code: s.code || "",
     logs: s.logs || [],
     memo: s.memo || "",
@@ -197,6 +198,7 @@ wss.on("connection", (ws) => {
         const prev = room.students.get(clientId);
         room.students.set(clientId, {
           name,
+          programName: prev?.programName || "",
           code: prev?.code || "",
           logs: prev?.logs || [],
           memo: prev?.memo || "",
@@ -333,11 +335,30 @@ wss.on("connection", (ws) => {
       return;
     }
 
+    if (msg.type === "program_update" && ws.role === "student") {
+      const clientId = ws.clientId;
+      if (!clientId) return;
+      const s = room.students.get(clientId) || { name: "Student", code: "", logs: [], lastSeen: Date.now() };
+      s.programName = String(msg.programName || "").trim();
+      s.lastSeen = Date.now();
+      room.students.set(clientId, s);
+      broadcastToTeachers(ws.roomId, {
+        type: "program_update",
+        clientId,
+        programName: s.programName,
+        lastSeen: s.lastSeen
+      });
+      return;
+    }
+
     if (msg.type === "code_update" && ws.role === "student") {
       const clientId = ws.clientId;
       if (!clientId) return;
       const s = room.students.get(clientId) || { name: "Student", code: "", logs: [], lastSeen: Date.now() };
       s.code = String(msg.code || "");
+      if (msg.programName !== undefined) {
+        s.programName = String(msg.programName || "").trim();
+      }
       s.lastSeen = Date.now();
       room.students.set(clientId, s);
 
@@ -346,6 +367,7 @@ wss.on("connection", (ws) => {
         clientId,
         name: s.name,
         code: s.code,
+        programName: s.programName || "",
         lastSeen: s.lastSeen
       });
       return;
