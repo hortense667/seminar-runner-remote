@@ -53,6 +53,8 @@ const wss = new WebSocketServer({ server });
  *   teachers: Set(ws),
  *   sockets: Set(ws),
  *   studentSockets: Map(clientId -> Set(ws)),
+ *   resources: Array<{ title: string, url: string }>,
+ *   teacherMessage: string,
  *   nameLock: boolean
  * })
  */
@@ -64,9 +66,31 @@ const CLEANUP_INTERVAL_MS = Number(process.env.CLEANUP_INTERVAL_MS || 1000 * 60)
 
 function getRoom(roomId) {
   if (!rooms.has(roomId)) {
-    rooms.set(roomId, { students: new Map(), teachers: new Set(), sockets: new Set(), studentSockets: new Map(), nameLock: false });
+    rooms.set(roomId, { students: new Map(), teachers: new Set(), sockets: new Set(), studentSockets: new Map(), resources: [], teacherMessage: "", nameLock: false });
   }
   return rooms.get(roomId);
+}
+
+function normalizeTeacherMessage(input) {
+  let s = String(input ?? "");
+  s = s.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  // keep it single-line for header display
+  s = s.replace(/\n+/g, " ").trim();
+  if (s.length > 200) s = s.slice(0, 200);
+  return s;
+}
+
+function normalizeResources(input) {
+  const arr = Array.isArray(input) ? input : [];
+  const out = [];
+  for (const it of arr.slice(0, 50)) {
+    const title = String(it?.title || "").trim().slice(0, 80);
+    const url = String(it?.url || "").trim().slice(0, 2000);
+    if (!title || !url) continue;
+    if (!/^https?:\/\//i.test(url)) continue;
+    out.push({ title, url });
+  }
+  return out;
 }
 
 function buildStudentsSnapshot(room) {
@@ -163,6 +187,8 @@ wss.on("connection", (ws) => {
         const students = buildStudentsSnapshot(room);
         ws.send(JSON.stringify({ type: "snapshot", room: roomId, students }));
         ws.send(JSON.stringify({ type: "room_state", room: roomId, nameLock: !!room.nameLock }));
+        ws.send(JSON.stringify({ type: "resources_state", room: roomId, resources: room.resources || [] }));
+        ws.send(JSON.stringify({ type: "teacher_message_state", room: roomId, message: room.teacherMessage || "" }));
       } else {
         if (!clientId) return;
         room.sockets.add(ws);
@@ -184,6 +210,8 @@ wss.on("connection", (ws) => {
           lastSeen: Date.now()
         });
         ws.send(JSON.stringify({ type: "room_state", room: roomId, nameLock: !!room.nameLock }));
+        ws.send(JSON.stringify({ type: "resources_state", room: roomId, resources: room.resources || [] }));
+        ws.send(JSON.stringify({ type: "teacher_message_state", room: roomId, message: room.teacherMessage || "" }));
       }
       return;
     }
@@ -203,6 +231,18 @@ wss.on("connection", (ws) => {
     if (msg.type === "set_name_lock" && ws.role === "teacher") {
       room.nameLock = !!msg.locked;
       broadcastToRoom(ws.roomId, { type: "room_state", room: ws.roomId, nameLock: !!room.nameLock });
+      return;
+    }
+
+    if (msg.type === "resources_update" && ws.role === "teacher") {
+      room.resources = normalizeResources(msg.resources);
+      broadcastToRoom(ws.roomId, { type: "resources_state", room: ws.roomId, resources: room.resources || [] });
+      return;
+    }
+
+    if (msg.type === "teacher_message_update" && ws.role === "teacher") {
+      room.teacherMessage = normalizeTeacherMessage(msg.message);
+      broadcastToRoom(ws.roomId, { type: "teacher_message_state", room: ws.roomId, message: room.teacherMessage || "" });
       return;
     }
 
