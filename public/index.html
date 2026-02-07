@@ -35,6 +35,9 @@
     .tag-off { background:#f1f1f1; border-color:#e1e1e1; color:#777; }
     .tag-done-on { background:#2f6f3a; border-color:#2f6f3a; color:#fff; }
     .tag-question-on { background:#8a6b00; border-color:#8a6b00; color:#fff; }
+    .teacher-msg { font-size: 12px; padding: 6px 10px; border:1px solid #444; border-radius:999px; background:#4a4a4a; color:#fff; max-width: 520px; overflow:hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .teacher-msg.empty { display:none; }
+    .teacher-msg-input { padding:6px 8px; border:1px solid #ccc; border-radius:999px; min-width: 260px; max-width: 520px; }
     .pill { font-size: 11px; padding: 2px 6px; border: 1px solid #ddd; border-radius: 999px; color:#333; }
     iframe { width: 100%; height: 260px; border: 0; background:#fff; }
     .danger { color:#a00; }
@@ -43,6 +46,12 @@
     .modal-head { padding: 10px 12px; border-bottom:1px solid #eee; display:flex; justify-content:space-between; align-items:center; gap:10px; }
     .modal-body { padding: 10px 12px; overflow:auto; }
     .modal-body pre { margin:0; white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.45; }
+    .res-list { display:flex; flex-direction:column; gap:8px; }
+    .res-item { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:8px 10px; border:1px solid #eee; border-radius:12px; }
+    .res-item a { color:#0b4a7a; text-decoration: none; }
+    .res-item a:hover { text-decoration: underline; }
+    .res-edit-row { display:grid; grid-template-columns: 1fr 2fr auto; gap:8px; align-items:center; margin-bottom:8px; }
+    .res-edit-row input { padding:6px 8px; border:1px solid #ccc; border-radius:10px; }
     .maximize-bar { position: fixed; top: 12px; left: 12px; right: 12px; z-index: 1002; display: none; background: #fff; border: 1px solid #ddd; border-radius: 12px; padding: 8px 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
     .runner-wrap { border: 1px solid #eee; border-radius: 10px; overflow: hidden; background: #fff; }
     body.maximized { overflow: hidden; }
@@ -67,10 +76,14 @@
   </div>
   <span class="muted" id="status"></span>
   <span class="row" id="studentSignalWrap" style="margin-left:auto;display:none;">
+    <span class="teacher-msg empty" id="teacherMsg" title="講師からのメッセージ"></span>
     <button class="soft" id="studentDoneBtn" title="講師に「できました」を通知">できました</button>
     <button class="soft" id="studentQuestionBtn" title="講師に「質問あり」を通知">質問あり</button>
+    <button class="soft" id="studentResourcesBtn" title="関係資料">関係資料</button>
   </span>
   <span class="row" id="teacherControlsWrap" style="margin-left:auto;display:none;">
+    <input class="teacher-msg-input" id="teacherMsgInput" placeholder="受講者へメッセージ（例: 5分休憩 / 〇〇に進んでください）" />
+    <button class="soft" id="teacherMsgSendBtn">送信</button>
     <label class="muted" style="display:flex;gap:6px;align-items:center;">
       <input type="checkbox" id="teacherShowAllLogs" checked />
       Logs: 全員（OFFで選択者のみ）
@@ -80,6 +93,7 @@
       名前変更禁止
     </label>
     <button id="teacherClearRoomBtn">受講者一覧リセット</button>
+    <button class="soft" id="teacherResourcesBtn" title="関係資料">関係資料</button>
   </span>
 </header>
 
@@ -174,6 +188,33 @@ console.log('hello');"></textarea>
   </div>
 </div>
 
+<div class="modal-backdrop" id="resourcesModal">
+  <div class="modal" role="dialog" aria-modal="true" aria-label="関係資料">
+    <div class="modal-head">
+      <strong style="font-size:13px;">関係資料</strong>
+      <div class="row">
+        <button id="resourcesEditBtn" style="display:none;">編集する</button>
+        <button id="resourcesCloseBtn">閉じる</button>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div id="resourcesView">
+        <div class="res-list" id="resourcesList"></div>
+        <div class="muted" id="resourcesEmpty" style="display:none;">（まだ登録がありません）</div>
+      </div>
+      <div id="resourcesEdit" style="display:none;">
+        <div class="muted" style="margin-bottom:8px;">タイトルとURL（http/https）を入力して保存してください。</div>
+        <div id="resourcesEditRows"></div>
+        <div class="row" style="margin-top:8px;">
+          <button id="resourcesAddRowBtn">追加</button>
+          <button class="primary" id="resourcesSaveBtn">保存</button>
+          <button id="resourcesCancelBtn">キャンセル</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script>
   const qs = new URLSearchParams(location.search);
   const role = (qs.get("role") === "teacher") ? "teacher" : "student";
@@ -187,9 +228,13 @@ console.log('hello');"></textarea>
   const statusEl = document.getElementById("status");
   const qrLink = document.getElementById("qrLink");
   const studentSignalWrap = document.getElementById("studentSignalWrap");
+  const teacherMsg = document.getElementById("teacherMsg");
   const studentDoneBtn = document.getElementById("studentDoneBtn");
   const studentQuestionBtn = document.getElementById("studentQuestionBtn");
+  const studentResourcesBtn = document.getElementById("studentResourcesBtn");
   const teacherControlsWrap = document.getElementById("teacherControlsWrap");
+  const teacherMsgInput = document.getElementById("teacherMsgInput");
+  const teacherMsgSendBtn = document.getElementById("teacherMsgSendBtn");
 
   const studentPane = document.getElementById("studentPane");
   const teacherPane = document.getElementById("teacherPane");
@@ -206,6 +251,17 @@ console.log('hello');"></textarea>
   const helpModal = document.getElementById("helpModal");
   const helpCloseBtn = document.getElementById("helpCloseBtn");
   const helpText = document.getElementById("helpText");
+  const resourcesModal = document.getElementById("resourcesModal");
+  const resourcesCloseBtn = document.getElementById("resourcesCloseBtn");
+  const resourcesEditBtn = document.getElementById("resourcesEditBtn");
+  const resourcesList = document.getElementById("resourcesList");
+  const resourcesEmpty = document.getElementById("resourcesEmpty");
+  const resourcesView = document.getElementById("resourcesView");
+  const resourcesEdit = document.getElementById("resourcesEdit");
+  const resourcesEditRows = document.getElementById("resourcesEditRows");
+  const resourcesAddRowBtn = document.getElementById("resourcesAddRowBtn");
+  const resourcesSaveBtn = document.getElementById("resourcesSaveBtn");
+  const resourcesCancelBtn = document.getElementById("resourcesCancelBtn");
   const runner = document.getElementById("runner");
   const logsEl = document.getElementById("logs");
 
@@ -224,6 +280,7 @@ console.log('hello');"></textarea>
   const teacherShowAllLogs = document.getElementById("teacherShowAllLogs");
   const teacherLockName = document.getElementById("teacherLockName");
   const teacherClearRoomBtn = document.getElementById("teacherClearRoomBtn");
+  const teacherResourcesBtn = document.getElementById("teacherResourcesBtn");
   const teacherSelInfo = document.getElementById("teacherSelInfo");
   const teacherSelId = document.getElementById("teacherSelId");
   const teacherHelpBtn = document.getElementById("teacherHelpBtn");
@@ -265,6 +322,8 @@ console.log('hello');"></textarea>
   let writebackTargetId = null;
   let writebackPendingTimer = null;
   let helpLoaded = false;
+  let roomResources = []; // Array<{title,url}>
+  let resourcesEditMode = false;
 
   function scheduleRenderStudents() {
     if (role !== "teacher") return;
@@ -417,6 +476,24 @@ ${code}
     ws.send(JSON.stringify({ type: "signal_update", signal: studentSignal }));
   }
 
+  function applyTeacherMessageUI(msg) {
+    if (!teacherMsg) return;
+    const t = String(msg || "").trim();
+    teacherMsg.textContent = t;
+    teacherMsg.classList.toggle("empty", !t);
+    if (teacherMsg) teacherMsg.title = t ? `講師メッセージ: ${t}` : "講師からのメッセージ";
+  }
+
+  function sendTeacherMessage() {
+    if (role !== "teacher") return;
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      alert("未接続です（WebSocketが未接続）。Connect後にお試しください。");
+      return;
+    }
+    const msg = String(teacherMsgInput?.value || "");
+    ws.send(JSON.stringify({ type: "teacher_message_update", message: msg }));
+  }
+
   async function openHelp() {
     if (!helpModal || !helpText) return;
     helpModal.style.display = "block";
@@ -435,6 +512,78 @@ ${code}
   function closeHelp() {
     if (!helpModal) return;
     helpModal.style.display = "none";
+  }
+
+  function renderResourcesView() {
+    if (!resourcesList || !resourcesEmpty) return;
+    resourcesList.innerHTML = "";
+    const arr = Array.isArray(roomResources) ? roomResources : [];
+    resourcesEmpty.style.display = arr.length ? "none" : "block";
+    for (const r of arr) {
+      const row = document.createElement("div");
+      row.className = "res-item";
+      const a = document.createElement("a");
+      a.href = r.url;
+      a.target = "_blank";
+      a.rel = "noopener";
+      a.textContent = r.title;
+      const u = document.createElement("span");
+      u.className = "muted";
+      u.textContent = (r.url || "").replace(/^https?:\/\//i, "");
+      row.appendChild(a);
+      row.appendChild(u);
+      resourcesList.appendChild(row);
+    }
+  }
+
+  function renderResourcesEdit() {
+    if (!resourcesEditRows) return;
+    resourcesEditRows.innerHTML = "";
+    const arr = Array.isArray(roomResources) ? roomResources : [];
+    const ensure = arr.length ? arr : [{ title: "", url: "" }];
+    for (let i = 0; i < ensure.length; i++) {
+      const r = ensure[i] || {};
+      const wrap = document.createElement("div");
+      wrap.className = "res-edit-row";
+      const title = document.createElement("input");
+      title.placeholder = "タイトル";
+      title.value = String(r.title || "");
+      const url = document.createElement("input");
+      url.placeholder = "https://...";
+      url.value = String(r.url || "");
+      const del = document.createElement("button");
+      del.textContent = "削除";
+      del.onclick = () => {
+        ensure.splice(i, 1);
+        roomResources = ensure.filter(x => x && (x.title || x.url));
+        renderResourcesEdit();
+      };
+      wrap.appendChild(title);
+      wrap.appendChild(url);
+      wrap.appendChild(del);
+      resourcesEditRows.appendChild(wrap);
+    }
+  }
+
+  function setResourcesMode(edit) {
+    resourcesEditMode = !!edit;
+    if (resourcesView) resourcesView.style.display = resourcesEditMode ? "none" : "block";
+    if (resourcesEdit) resourcesEdit.style.display = resourcesEditMode ? "block" : "none";
+    if (resourcesEditBtn) resourcesEditBtn.style.display = (role === "teacher") ? (resourcesEditMode ? "none" : "inline-block") : "none";
+    if (resourcesEditMode) renderResourcesEdit();
+    else renderResourcesView();
+  }
+
+  async function openResources() {
+    if (!resourcesModal) return;
+    resourcesModal.style.display = "block";
+    setResourcesMode(false);
+  }
+
+  function closeResources() {
+    if (!resourcesModal) return;
+    resourcesModal.style.display = "none";
+    setResourcesMode(false);
   }
 
   // ---------- Student runner (sandbox iframe, console forwarding to parent -> WS) ----------
@@ -532,6 +681,53 @@ ${code}
   });
   window.addEventListener("keydown", (e) => {
     if (e.key === "Escape") closeHelp();
+  });
+
+  studentResourcesBtn?.addEventListener("click", openResources);
+  teacherResourcesBtn?.addEventListener("click", openResources);
+  resourcesCloseBtn?.addEventListener("click", closeResources);
+  resourcesModal?.addEventListener("click", (e) => {
+    if (e.target === resourcesModal) closeResources();
+  });
+  resourcesEditBtn?.addEventListener("click", () => {
+    if (role !== "teacher") return;
+    setResourcesMode(true);
+  });
+  resourcesAddRowBtn?.addEventListener("click", () => {
+    if (role !== "teacher") return;
+    roomResources = [...(Array.isArray(roomResources) ? roomResources : []), { title: "", url: "" }].slice(0, 50);
+    renderResourcesEdit();
+  });
+  resourcesCancelBtn?.addEventListener("click", () => setResourcesMode(false));
+  resourcesSaveBtn?.addEventListener("click", () => {
+    if (role !== "teacher") return;
+    if (!resourcesEditRows) return;
+    const rows = Array.from(resourcesEditRows.querySelectorAll(".res-edit-row"));
+    const next = [];
+    for (const row of rows) {
+      const inputs = row.querySelectorAll("input");
+      const title = String(inputs?.[0]?.value || "").trim();
+      const url = String(inputs?.[1]?.value || "").trim();
+      if (!title && !url) continue;
+      if (!/^https?:\/\//i.test(url)) {
+        alert("URLは http:// または https:// から始めてください。");
+        return;
+      }
+      next.push({ title: title.slice(0, 80), url: url.slice(0, 2000) });
+    }
+    roomResources = next;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "resources_update", resources: roomResources }));
+    }
+    setResourcesMode(false);
+  });
+
+  teacherMsgSendBtn?.addEventListener("click", sendTeacherMessage);
+  teacherMsgInput?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      sendTeacherMessage();
+    }
   });
 
   // name: filename-safe-ish characters only + (if connected) share update
@@ -947,6 +1143,23 @@ ${safeCode}
         applyNameLock();
         if (role === "teacher" && teacherLockName) {
           teacherLockName.checked = !!roomNameLocked;
+        }
+        return;
+      }
+
+      if (msg.type === "resources_state") {
+        roomResources = Array.isArray(msg.resources) ? msg.resources : [];
+        // teacher can edit; others view only
+        if (resourcesEditBtn) resourcesEditBtn.style.display = (role === "teacher" && !resourcesEditMode) ? "inline-block" : "none";
+        if (!resourcesEditMode) renderResourcesView();
+        return;
+      }
+
+      if (msg.type === "teacher_message_state") {
+        const m = String(msg.message || "");
+        applyTeacherMessageUI(m);
+        if (role === "teacher" && teacherMsgInput && document.activeElement !== teacherMsgInput) {
+          teacherMsgInput.value = m;
         }
         return;
       }
