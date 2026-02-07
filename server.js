@@ -4,6 +4,7 @@ import { WebSocketServer } from "ws";
 import path from "path";
 import { fileURLToPath } from "url";
 import QRCode from "qrcode";
+import { readFile } from "fs/promises";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -28,6 +29,21 @@ app.get("/api/qr", async (req, res) => {
   }
 });
 
+/**
+ * Users guide (markdown) for in-app help
+ * GET /api/users_guide
+ */
+app.get("/api/users_guide", async (req, res) => {
+  try {
+    const p = path.join(__dirname, "USERS_GUIDE.MD");
+    const txt = await readFile(p, "utf-8");
+    res.setHeader("Content-Type", "text/plain; charset=utf-8");
+    res.send(txt);
+  } catch (e) {
+    res.status(500).json({ error: String(e?.message || e) });
+  }
+});
+
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
@@ -36,6 +52,7 @@ const wss = new WebSocketServer({ server });
  *   students: Map(clientId -> { name, code, logs: string[], memo?: string, lastSeen }),
  *   teachers: Set(ws),
  *   sockets: Set(ws),
+ *   studentSockets: Map(clientId -> Set(ws)),
  *   nameLock: boolean
  * })
  */
@@ -47,7 +64,7 @@ const CLEANUP_INTERVAL_MS = Number(process.env.CLEANUP_INTERVAL_MS || 1000 * 60)
 
 function getRoom(roomId) {
   if (!rooms.has(roomId)) {
-    rooms.set(roomId, { students: new Map(), teachers: new Set(), sockets: new Set(), nameLock: false });
+    rooms.set(roomId, { students: new Map(), teachers: new Set(), sockets: new Set(), studentSockets: new Map(), nameLock: false });
   }
   return rooms.get(roomId);
 }
@@ -59,6 +76,7 @@ function buildStudentsSnapshot(room) {
     code: s.code || "",
     logs: s.logs || [],
     memo: s.memo || "",
+    signal: s.signal || "",
     lastSeen: s.lastSeen || Date.now()
   }));
 }
@@ -77,6 +95,17 @@ function broadcastToRoom(roomId, msgObj) {
   if (!room) return;
   const data = JSON.stringify(msgObj);
   for (const ws of room.sockets) {
+    if (ws.readyState === ws.OPEN) ws.send(data);
+  }
+}
+
+function sendToStudent(roomId, clientId, msgObj) {
+  const room = rooms.get(roomId);
+  if (!room) return;
+  const set = room.studentSockets?.get(clientId);
+  if (!set || !set.size) return;
+  const data = JSON.stringify(msgObj);
+  for (const ws of set) {
     if (ws.readyState === ws.OPEN) ws.send(data);
   }
 }
@@ -137,12 +166,15 @@ wss.on("connection", (ws) => {
       } else {
         if (!clientId) return;
         room.sockets.add(ws);
+        if (!room.studentSockets.has(clientId)) room.studentSockets.set(clientId, new Set());
+        room.studentSockets.get(clientId).add(ws);
         const prev = room.students.get(clientId);
         room.students.set(clientId, {
           name,
           code: prev?.code || "",
           logs: prev?.logs || [],
           memo: prev?.memo || "",
+          signal: prev?.signal || "",
           lastSeen: Date.now()
         });
         broadcastToTeachers(roomId, {
@@ -186,6 +218,58 @@ wss.on("connection", (ws) => {
       room.students.set(clientId, s);
 
       broadcastToTeachers(ws.roomId, { type: "memo_update", clientId, memo });
+      return;
+    }
+
+    if (msg.type === "force_code" && ws.role === "teacher") {
+      const clientId = String(msg.clientId || "").trim();
+      if (!clientId) {
+        try { ws.send(JSON.stringify({ type: "force_code_result", ok: false, reason: "missing_clientId" })); } catch {}
+        return;
+      }
+      const s = room.students.get(clientId);
+      if (!s) {
+        try { ws.send(JSON.stringify({ type: "force_code_result", ok: false, clientId, reason: "student_not_found" })); } catch {}
+        return;
+      }
+
+      let code = String(msg.code || "");
+      if (code.length > 200_000) code = code.slice(0, 200_000); // safety limit
+      s.code = code;
+      s.lastSeen = Date.now();
+      room.students.set(clientId, s);
+
+      // update teacher views
+      broadcastToTeachers(ws.roomId, {
+        type: "code_update",
+        clientId,
+        name: s.name,
+        code: s.code,
+        lastSeen: s.lastSeen
+      });
+
+      // push to student's UI (no auto-run)
+      sendToStudent(ws.roomId, clientId, { type: "force_code", code: s.code });
+      try { ws.send(JSON.stringify({ type: "force_code_result", ok: true, clientId, lastSeen: s.lastSeen })); } catch {}
+      return;
+    }
+
+    if (msg.type === "signal_update" && ws.role === "student") {
+      const clientId = ws.clientId;
+      if (!clientId) return;
+      const s = room.students.get(clientId) || { name: "Student", code: "", logs: [], memo: "", signal: "", lastSeen: Date.now() };
+      const next = String(msg.signal || "");
+      const signal = (next === "done" || next === "question") ? next : "";
+      s.signal = signal;
+      s.lastSeen = Date.now();
+      room.students.set(clientId, s);
+      broadcastToTeachers(ws.roomId, {
+        type: "signal_update",
+        clientId,
+        name: s.name,
+        signal: s.signal,
+        lastSeen: s.lastSeen
+      });
       return;
     }
 
@@ -268,6 +352,11 @@ wss.on("connection", (ws) => {
     if (ws.role === "teacher") {
       room.teachers.delete(ws);
     } else if (ws.role === "student" && ws.clientId) {
+      const set = room.studentSockets?.get(ws.clientId);
+      if (set) {
+        set.delete(ws);
+        if (!set.size) room.studentSockets.delete(ws.clientId);
+      }
       const s = room.students.get(ws.clientId);
       if (s) {
         s.lastSeen = Date.now();
