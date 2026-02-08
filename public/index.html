@@ -112,6 +112,8 @@
           <button class="tint-blue" id="clearCodeBtn">Codeクリア</button>
           <button id="extractBtn">HTML→JS抽出</button>
           <button id="studentDlBtn">HTMLでDL</button>
+          <button id="studentImportBtn">HTML読み込み</button>
+          <input id="studentImportFile" type="file" accept=".html,text/html" style="display:none;" />
           <button class="soft" id="helpBtn" title="使い方（USERS_GUIDE）">？</button>
         </div>
         <div class="row maximize-bar" id="studentMaxBar">
@@ -144,7 +146,9 @@ console.log('hello');"></textarea>
           <span class="muted teacher-info" id="teacherProgramName"></span>
           <button id="teacherCopyBtn">コードをコピー</button>
           <button id="teacherDlBtn">HTMLでDL</button>
-          <button id="teacherRunPopupBtn">別タブで実行（固まり対策）</button>
+          <button id="teacherImportBtn">HTML読み込み</button>
+          <input id="teacherImportFile" type="file" accept=".html,text/html" style="display:none;" />
+          <button id="teacherRunPopupBtn">別タブで実行</button>
           <button id="teacherClosePopupBtn">別タブを閉じる</button>
           <button id="teacherWritebackBtn">Code書き戻し</button>
           <span class="muted teacher-info" id="teacherSelInfo"></span>
@@ -253,6 +257,8 @@ console.log('hello');"></textarea>
   const clearCodeBtn = document.getElementById("clearCodeBtn");
   const extractBtn = document.getElementById("extractBtn");
   const studentDlBtn = document.getElementById("studentDlBtn");
+  const studentImportBtn = document.getElementById("studentImportBtn");
+  const studentImportFile = document.getElementById("studentImportFile");
   const helpBtn = document.getElementById("helpBtn");
   const helpModal = document.getElementById("helpModal");
   const helpCloseBtn = document.getElementById("helpCloseBtn");
@@ -275,6 +281,8 @@ console.log('hello');"></textarea>
   const teacherCodeEl = document.getElementById("teacherCode");
   const teacherCopyBtn = document.getElementById("teacherCopyBtn");
   const teacherDlBtn = document.getElementById("teacherDlBtn");
+  const teacherImportBtn = document.getElementById("teacherImportBtn");
+  const teacherImportFile = document.getElementById("teacherImportFile");
   const teacherRunPopupBtn = document.getElementById("teacherRunPopupBtn");
   const teacherClosePopupBtn = document.getElementById("teacherClosePopupBtn");
   const teacherWritebackBtn = document.getElementById("teacherWritebackBtn");
@@ -349,6 +357,18 @@ console.log('hello');"></textarea>
     }, 80);
   }
 
+  function applyTeacherSelection(id, s) {
+    selectedStudentId = id;
+    teacherCodeEl.value = s.code || "";
+    clearLogsUI();
+    (s.logs || []).forEach(line => appendLog(line));
+    if (teacherSelInfo) teacherSelInfo.textContent = `選択: ${s.name || "Student"}`;
+    if (teacherSelId) teacherSelId.textContent = id ? `id: ${id}` : "";
+    if (teacherProgramName) {
+      teacherProgramName.textContent = s.programName ? `プログラム名: ${s.programName}` : "";
+    }
+  }
+
   function setStatus(txt) { statusEl.textContent = txt; }
 
   function appendLog(line) {
@@ -386,6 +406,41 @@ console.log('hello');"></textarea>
     if (/^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(\..*)?$/.test(upper)) out = "_" + out;
     if (out.length > 80) out = out.slice(0, 80);
     return out;
+  }
+
+  function extractProgramNameFromTitle(titleText) {
+    const raw = String(titleText || "").normalize("NFKC").trim();
+    if (!raw) return "";
+    const idx = raw.indexOf("(");
+    const base = idx >= 0 ? raw.slice(0, idx) : raw;
+    return filterDisplayName(base);
+  }
+
+  function parseTitleMeta(titleText) {
+    const raw = String(titleText || "").normalize("NFKC").trim();
+    if (!raw) return { programName: "", studentName: "" };
+    const firstIdx = raw.indexOf("(");
+    if (firstIdx < 0) {
+      return { programName: filterDisplayName(raw), studentName: "" };
+    }
+    const programName = filterDisplayName(raw.slice(0, firstIdx).trim());
+    const m = raw.slice(firstIdx).match(/\(([^()]*)\)/);
+    const studentName = m ? filterDisplayName(m[1]) : "";
+    return { programName, studentName };
+  }
+
+  function parseHtmlProgram(text, fallbackName = "") {
+    const doc = new DOMParser().parseFromString(String(text || ""), "text/html");
+    const meta = parseTitleMeta(doc?.title || "");
+    const scripts = Array.from(doc.querySelectorAll("script"))
+      .filter(s => !s.src)
+      .map(s => (s.textContent || "").trim())
+      .filter(Boolean);
+    const code = scripts.join("\n\n");
+    const fallback = filterDisplayName(fallbackName || "");
+    const programName = meta.programName || fallback || "";
+    const studentName = meta.studentName || "";
+    return { code, programName, studentName };
   }
 
   function updateStudentProgramNameLabels() {
@@ -872,6 +927,11 @@ ${code}
     if (role !== "student") return;
 
     codeEl.value = "";
+    if (programNameEl) {
+      programNameEl.value = "";
+      localStorage.setItem("seminar_program_name", "");
+      updateStudentProgramNameLabels();
+    }
 
     // share cleared code to teacher
     if (ws && ws.readyState === WebSocket.OPEN) {
@@ -924,6 +984,42 @@ ${code}
     downloadHtmlFromCode(code, base);
   });
 
+  studentImportBtn?.addEventListener("click", () => {
+    if (role !== "student") return;
+    studentImportFile?.click();
+  });
+
+  studentImportFile?.addEventListener("change", () => {
+    if (role !== "student") return;
+    const file = studentImportFile?.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const text = String(reader.result || "");
+        const fallbackName = file.name.replace(/\.[^.]+$/, "");
+        const { code, programName } = parseHtmlProgram(text, fallbackName);
+        if (!code.trim()) {
+          appendLog("[warn] HTML内にインライン<scr" + "ipt>が見つかりません。");
+          return;
+        }
+        codeEl.value = code;
+        if (programNameEl && programName) programNameEl.value = programName;
+        localStorage.setItem("seminar_program_name", programNameEl?.value || "");
+        updateStudentProgramNameLabels();
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: "code_update", code, programName: getProgramNameSafe() }));
+        }
+        appendLog(`[info] HTMLから読み込みました: ${programNameEl?.value || "program"}`);
+      } catch {
+        appendLog("[warn] HTMLの読み込みに失敗しました。");
+      } finally {
+        if (studentImportFile) studentImportFile.value = "";
+      }
+    };
+    reader.readAsText(file);
+  });
+
 // ---------- Teacher: download HTML from selected student's code ----------
   function downloadHtmlFromCode(code, filenameBase = "student_code") {
     const safe = sanitizeForFilename(filenameBase || "student_code");
@@ -960,6 +1056,80 @@ ${safeCode}
     const r = (roomEl?.value || "demo").trim() || "demo";
     const base = `${p}(${n})(${r})${timestampForFilename()}`;
     downloadHtmlFromCode(code, base);
+  });
+
+  teacherImportBtn?.addEventListener("click", () => {
+    if (role !== "teacher") return;
+    teacherImportFile?.click();
+  });
+
+  teacherImportFile?.addEventListener("change", () => {
+    if (role !== "teacher") return;
+    const file = teacherImportFile?.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const text = String(reader.result || "");
+        const fallbackName = file.name.replace(/\.[^.]+$/, "");
+        const { code, programName, studentName } = parseHtmlProgram(text, fallbackName);
+        if (!code.trim()) {
+          appendLog("[warn] HTML内にインライン<scr" + "ipt>が見つかりません。");
+          return;
+        }
+        // find matching connected student by name
+        let matchedId = null;
+        let matched = null;
+        if (studentName) {
+          for (const [id, s] of teacherState.entries()) {
+            if ((s.name || "") === studentName) {
+              if (!matched || (s.lastSeen || 0) > (matched.lastSeen || 0)) {
+                matchedId = id;
+                matched = s;
+              }
+            }
+          }
+        }
+
+        if (matchedId && matched) {
+          matched.code = code;
+          matched.programName = programName || matched.programName || "";
+          teacherState.set(matchedId, matched);
+          applyTeacherSelection(matchedId, matched);
+        } else {
+          const name = studentName ? `${studentName}（未接続）` : "未接続（読み込み）";
+          let existingId = null;
+          let existing = null;
+          for (const [id, s] of teacherState.entries()) {
+            if ((s.name || "") === name) {
+              existingId = id;
+              existing = s;
+              break;
+            }
+          }
+          if (existingId && existing) {
+            existing.code = code;
+            existing.programName = programName || existing.programName || "";
+            existing.lastSeen = Date.now();
+            teacherState.set(existingId, existing);
+            applyTeacherSelection(existingId, existing);
+          } else {
+            const id = `imported_${Date.now()}`;
+            const entry = { name, code, logs: [], memo: "", programName: programName || "", lastSeen: Date.now() };
+            teacherState.set(id, entry);
+            applyTeacherSelection(id, entry);
+          }
+        }
+
+        scheduleRenderStudents();
+        appendLog(`[info] HTMLから読み込みました: ${programName || "program"}`);
+      } catch {
+        appendLog("[warn] HTMLの読み込みに失敗しました。");
+      } finally {
+        if (teacherImportFile) teacherImportFile.value = "";
+      }
+    };
+    reader.readAsText(file);
   });
 
   // ---------- Teacher: run preview removed (use popup) ----------
@@ -1078,15 +1248,7 @@ ${safeCode}
       head.appendChild(right);
 
       head.onclick = () => {
-        selectedStudentId = s.id;
-        teacherCodeEl.value = s.code || "";
-        clearLogsUI();
-        (s.logs || []).forEach(line => appendLog(line));
-        teacherSelInfo.textContent = `選択: ${s.name || "Student"}`;
-        if (teacherSelId) teacherSelId.textContent = s.id ? `id: ${s.id}` : "";
-        if (teacherProgramName) {
-          teacherProgramName.textContent = s.programName ? `プログラム名: ${s.programName}` : "";
-        }
+        applyTeacherSelection(s.id, s);
       };
 
       const memo = document.createElement("input");

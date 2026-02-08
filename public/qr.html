@@ -38,11 +38,11 @@
     </div>
 
     <div class="card">
-      <h2>講師用（ダッシュボード）</h2>
-      <div class="muted">講師PC/別端末で使う</div>
-      <div style="margin-top:10px;"><img id="teacherImg" alt="teacher qr"></div>
+      <h2>作品一覧</h2>
+      <div class="muted">保存済みHTMLの一覧ページ</div>
+      <div style="margin-top:10px;"><img id="galleryImg" alt="gallery qr"></div>
       <div class="muted" style="margin-top:10px;">URL</div>
-      <div class="url" id="teacherUrl"></div>
+      <div class="url" id="galleryUrl"></div>
     </div>
   </div>
 
@@ -52,9 +52,9 @@
   const updateBtn = document.getElementById("update");
 
   const studentImg = document.getElementById("studentImg");
-  const teacherImg = document.getElementById("teacherImg");
+  const galleryImg = document.getElementById("galleryImg");
   const studentUrlEl = document.getElementById("studentUrl");
-  const teacherUrlEl = document.getElementById("teacherUrl");
+  const galleryUrlEl = document.getElementById("galleryUrl");
 
   roomEl.value = qs.get("room") || roomEl.value;
 
@@ -72,13 +72,13 @@
   async function refresh() {
     const room = (roomEl.value || "demo").trim();
     const studentUrl = `${baseOrigin()}/?room=${encodeURIComponent(room)}`;
-    const teacherUrl = `${baseOrigin()}/?role=teacher&room=${encodeURIComponent(room)}`;
+    const galleryUrl = "https://seminar-runner.pages.dev/";
 
     studentUrlEl.textContent = studentUrl;
-    teacherUrlEl.textContent = teacherUrl;
+    galleryUrlEl.textContent = galleryUrl;
 
     studentImg.src = await qrDataUrl(studentUrl);
-    teacherImg.src = await qrDataUrl(teacherUrl);
+    galleryImg.src = await qrDataUrl(galleryUrl);
 
     const nqs = new URLSearchParams(location.search);
     nqs.set("room", room);
