@@ -7,7 +7,9 @@
     "node": ">=18"
   },
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "showcase:build": "node tools/showcase.mjs",
+    "showcase:deploy": "node tools/showcase.mjs --deploy"
   },
   "dependencies": {
     "express": "^4.19.2",

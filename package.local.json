@@ -8,7 +8,9 @@
   },
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js"
+    "dev": "node --watch server.js",
+    "showcase:build": "node tools/showcase.mjs",
+    "showcase:deploy": "node tools/showcase.mjs --deploy"
   },
   "dependencies": {
     "express": "^4.19.2",

@@ -93,6 +93,37 @@ function normalizeResources(input) {
   return out;
 }
 
+function normalizeName(input, fallback = "Student") {
+  let s = String(input || "").trim();
+  if (!s) s = fallback;
+  if (s.length > 40) s = s.slice(0, 40);
+  return s;
+}
+
+function ensureUniqueName(room, desiredName, clientId) {
+  const exists = (name) => {
+    for (const [id, s] of room.students.entries()) {
+      if (id === clientId) continue;
+      if (s?.name === name) return true;
+    }
+    return false;
+  };
+  let base = desiredName || "Student";
+  if (!exists(base)) return base;
+  let i = 2;
+  while (i < 1000) {
+    const suffix = ` ${i}`;
+    let candidate = base;
+    if (candidate.length + suffix.length > 40) {
+      candidate = candidate.slice(0, Math.max(1, 40 - suffix.length));
+    }
+    candidate = `${candidate}${suffix}`;
+    if (!exists(candidate)) return candidate;
+    i += 1;
+  }
+  return `${base.slice(0, 30)}_${Date.now()}`;
+}
+
 function buildStudentsSnapshot(room) {
   return [...room.students.entries()].map(([id, s]) => ({
     clientId: id,
@@ -174,7 +205,7 @@ wss.on("connection", (ws) => {
       const roomId = String(msg.room || "").trim() || "default";
       const role = msg.role === "teacher" ? "teacher" : "student";
       const clientId = String(msg.clientId || "").trim() || null;
-      const name = String(msg.name || "").trim() || (role === "teacher" ? "Teacher" : "Student");
+      const name = normalizeName(msg.name, role === "teacher" ? "Teacher" : "Student");
 
       ws.roomId = roomId;
       ws.role = role;
@@ -196,8 +227,12 @@ wss.on("connection", (ws) => {
         if (!room.studentSockets.has(clientId)) room.studentSockets.set(clientId, new Set());
         room.studentSockets.get(clientId).add(ws);
         const prev = room.students.get(clientId);
+        const assigned = ensureUniqueName(room, name, clientId);
+        if (assigned !== name) {
+          try { ws.send(JSON.stringify({ type: "name_assigned", name: assigned })); } catch {}
+        }
         room.students.set(clientId, {
-          name,
+          name: assigned,
           programName: prev?.programName || "",
           code: prev?.code || "",
           logs: prev?.logs || [],
@@ -208,7 +243,7 @@ wss.on("connection", (ws) => {
         broadcastToTeachers(roomId, {
           type: "student_joined",
           clientId,
-          name,
+          name: assigned,
           lastSeen: Date.now()
         });
         ws.send(JSON.stringify({ type: "room_state", room: roomId, nameLock: !!room.nameLock }));
@@ -323,7 +358,12 @@ wss.on("connection", (ws) => {
         return;
       }
       const s = room.students.get(clientId) || { name: "Student", code: "", logs: [], lastSeen: Date.now() };
-      s.name = String(msg.name || "").trim() || s.name || "Student";
+      const desired = normalizeName(msg.name, s.name || "Student");
+      const assigned = ensureUniqueName(room, desired, clientId);
+      if (assigned !== desired) {
+        try { ws.send(JSON.stringify({ type: "name_assigned", name: assigned })); } catch {}
+      }
+      s.name = assigned;
       s.lastSeen = Date.now();
       room.students.set(clientId, s);
       broadcastToTeachers(ws.roomId, {
