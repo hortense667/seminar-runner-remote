@@ -1,9 +1,8 @@
-name: Fly.io Deploy
+name: Fly Deploy
 
 on:
   push:
-    branches:
-      - main
+    branches: [ "main" ]
 
 jobs:
   deploy:
@@ -11,9 +10,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - uses: superfly/flyctl-actions/setup-flyctl@v1
 
-      - name: Deploy to Fly.io
-        run: fly deploy --remote-only
+      - run: fly deploy --remote-only
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
