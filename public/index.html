@@ -122,6 +122,43 @@
       --pill-border: #6a7c3f;
       --link: #1e4e7a;
     }
+    body.theme-dic579 {
+      --bg: #0f2a4a;
+      --panel: #183a5e;
+      --panel-alt: #153353;
+      --text: #f3f7ff;
+      --muted: #c2d2ea;
+      --border: #27476c;
+      --header-bg: #0d2745;
+      --card-header-bg: #132f52;
+      --button-bg: #1a4168;
+      --button-text: #f3f7ff;
+      --button-border: #2a4f79;
+      --button-primary-bg: #3cb0ff;
+      --button-primary-text: #08223a;
+      --button-primary-border: #3cb0ff;
+      --button-soft-bg: #1f476f;
+      --button-soft-text: #f3f7ff;
+      --button-soft-border: #2d557f;
+      --button-tint-blue-bg: #1f5b8f;
+      --button-tint-blue-text: #e7f4ff;
+      --button-tint-blue-border: #2b6aa0;
+      --button-tint-orange-bg: #2b5b77;
+      --button-tint-orange-text: #e8f3ff;
+      --button-tint-orange-border: #3b6d8c;
+      --tag-off-bg: #204262;
+      --tag-off-text: #cfe0f7;
+      --tag-off-border: #2a4f79;
+      --tag-done-bg: #3dbb7b;
+      --tag-question-bg: #f0b248;
+      --badge-bg: #1a3553;
+      --badge-text: #f3f7ff;
+      --badge-border: #2a4f79;
+      --pill-bg: #112b4a;
+      --pill-text: #f3f7ff;
+      --pill-border: #cfe0f7;
+      --link: #a8d8ff;
+    }
     header { padding: 12px 16px; border-bottom: 1px solid var(--border); display:flex; gap:12px; align-items:center; flex-wrap: wrap; background: var(--header-bg); }
     main { display: grid; grid-template-columns: 1fr 420px; gap: 12px; padding: 12px; }
     textarea {
@@ -213,6 +250,7 @@
       <option value="lite">lite</option>
       <option value="dark">dark</option>
       <option value="picnic">picnic</option>
+      <option value="dic579">DIC579</option>
     </select>
   </span>
   <span class="row" id="studentSignalWrap" style="margin-left:auto;display:none;">
@@ -469,9 +507,9 @@ console.log('hello');"></textarea>
 
   // theme (lite/dark/picnic)
   const themeKey = "seminar_theme";
-  const themeClasses = ["theme-lite", "theme-dark", "theme-picnic"];
+  const themeClasses = ["theme-lite", "theme-dark", "theme-picnic", "theme-dic579"];
   function applyTheme(nextTheme) {
-    const t = (nextTheme === "dark" || nextTheme === "picnic") ? nextTheme : "lite";
+    const t = (nextTheme === "dark" || nextTheme === "picnic" || nextTheme === "dic579") ? nextTheme : "lite";
     document.body.classList.remove(...themeClasses);
     document.body.classList.add(`theme-${t}`);
     if (themeSelect) themeSelect.value = t;
