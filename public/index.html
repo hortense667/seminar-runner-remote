@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Seminar JS Runner 0.5</title>
+  <title>Seminar JS Runner</title>
   <style>
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans JP", sans-serif; margin: 0; }
     header { padding: 12px 16px; border-bottom: 1px solid #ddd; display:flex; gap:12px; align-items:center; flex-wrap: wrap;}
@@ -64,7 +64,7 @@
 </head>
 <body>
 <header>
-  <strong>Seminar JS Runner 0.5</strong>
+  <strong>Seminar JS Runner</strong>
   <span class="pill" id="rolePill"></span>
   <div class="row">
     <label class="muted">ルーム:</label>
@@ -1380,6 +1380,16 @@ ${safeCode}
           roomNameLocked = true;
           applyNameLock();
           appendLog("[warn] 講師が名前変更を禁止中のため、名前変更は反映されませんでした。");
+        }
+        return;
+      }
+
+      if (msg.type === "name_assigned" && role === "student") {
+        const assigned = filterDisplayName(msg.name || "");
+        if (assigned) {
+          if (nameEl) nameEl.value = assigned;
+          localStorage.setItem("seminar_name", assigned);
+          appendLog(`[info] 同名がいたため、名前を「${assigned}」に調整しました。`);
         }
         return;
       }
