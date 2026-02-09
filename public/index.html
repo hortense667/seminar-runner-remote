@@ -43,6 +43,9 @@
       --badge-bg: #2f3a46;
       --badge-text: #ffffff;
       --badge-border: #2f3a46;
+      --pill-bg: #f2f6fb;
+      --pill-text: #1b2430;
+      --pill-border: #7b8aa0;
       --link: #0b4a7a;
     }
     body.theme-dark {
@@ -77,6 +80,9 @@
       --badge-bg: #6b6b75;
       --badge-text: #ffffff;
       --badge-border: #6b6b75;
+      --pill-bg: #3a3b41;
+      --pill-text: #ffffff;
+      --pill-border: #d6d6e0;
       --link: #cde7ff;
     }
     body.theme-picnic {
@@ -111,6 +117,9 @@
       --badge-bg: #4f6b2a;
       --badge-text: #ffffff;
       --badge-border: #4f6b2a;
+      --pill-bg: #e7f4c1;
+      --pill-text: #2c3a1f;
+      --pill-border: #6a7c3f;
       --link: #1e4e7a;
     }
     header { padding: 12px 16px; border-bottom: 1px solid var(--border); display:flex; gap:12px; align-items:center; flex-wrap: wrap; background: var(--header-bg); }
@@ -161,7 +170,7 @@
     .teacher-msg { font-size: 12px; padding: 6px 10px; border:1px solid var(--badge-border); border-radius:999px; background: var(--badge-bg); color: var(--badge-text); max-width: 520px; overflow:hidden; text-overflow: ellipsis; white-space: nowrap; }
     .teacher-msg.empty { display:none; }
     .teacher-msg-input { padding:6px 8px; border:1px solid #ccc; border-radius:999px; min-width: 260px; max-width: 520px; }
-    .pill { font-size: 11px; padding: 2px 6px; border: 1px solid #ddd; border-radius: 999px; color:#333; }
+    .pill { font-size: 11px; padding: 2px 6px; border: 1px solid var(--pill-border); border-radius: 999px; color: var(--pill-text); background: var(--pill-bg); }
     iframe { width: 100%; height: 260px; border: 0; background: var(--panel); }
     .danger { color:#a00; }
     .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 2000; display:none; padding: 18px; box-sizing: border-box; }
