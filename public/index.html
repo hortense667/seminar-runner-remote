@@ -865,6 +865,12 @@ console.log('hello');"></textarea>
     setResourcesMode(false);
   }
 
+  function stripJsCodeFence(code) {
+    if (!code) return code;
+    const match = String(code).match(/^\s*```js\s*\r?\n([\s\S]*?)\r?\n```\s*$/i);
+    return match ? match[1] : code;
+  }
+
   // ---------- Student runner (sandbox iframe, console forwarding to parent -> WS) ----------
   function runStudentCode(code) {
     const srcdoc = `
@@ -1092,11 +1098,12 @@ ${code}
 
   function runStudent() {
     if (role !== "student") return;
-    const code = codeEl.value;
+    const rawCode = codeEl.value || "";
+    const code = stripJsCodeFence(rawCode);
 
     clearLogsUI();
     if (ws && ws.readyState === WebSocket.OPEN) {
-      ws.send(JSON.stringify({ type: "code_update", code, programName: getProgramNameSafe() }));
+      ws.send(JSON.stringify({ type: "code_update", code: rawCode, programName: getProgramNameSafe() }));
       ws.send(JSON.stringify({ type: "clear_logs" }));
     }
     runStudentCode(code);
@@ -1327,7 +1334,8 @@ ${safeCode}
 
   teacherRunPopupBtn?.addEventListener("click", () => {
     if (role !== "teacher") return;
-    const code = teacherCodeEl.value || "";
+    const rawCode = teacherCodeEl.value || "";
+    const code = stripJsCodeFence(rawCode);
     if (!code.trim()) return;
     clearLogsUI();
     if (teacherPopupWin && !teacherPopupWin.closed) {
