@@ -1221,7 +1221,8 @@ ${code}
 // ---------- Teacher: download HTML from selected student's code ----------
   function downloadHtmlFromCode(code, filenameBase = "student_code") {
     const safe = sanitizeForFilename(filenameBase || "student_code");
-    const safeCode = String(code || "").replace(/<\/script>/gi, "<\\/script>");
+    const normalized = stripJsCodeFence(code || "");
+    const safeCode = String(normalized).replace(/<\/script>/gi, "<\\/script>");
     const html = `<!doctype html><html lang="ja"><meta charset="utf-8">
 <title>${safe}</title>
 <body>
