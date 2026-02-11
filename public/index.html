@@ -1098,6 +1098,11 @@ ${code}
 
   function runStudent() {
     if (role !== "student") return;
+    if (!getProgramNameSafe()) {
+      alert("プログラム名を入力してください。");
+      if (programNameEl) programNameEl.focus();
+      return;
+    }
     const rawCode = codeEl.value || "";
     const code = stripJsCodeFence(rawCode);
 
