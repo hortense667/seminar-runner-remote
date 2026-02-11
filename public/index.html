@@ -1098,7 +1098,8 @@ ${code}
 
   function runStudent() {
     if (role !== "student") return;
-    if (!getProgramNameSafe()) {
+    const programNameRaw = filterDisplayName(programNameEl?.value || "");
+    if (!programNameRaw) {
       alert("プログラム名を入力してください。");
       if (programNameEl) programNameEl.focus();
       return;
