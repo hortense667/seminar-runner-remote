@@ -513,7 +513,6 @@ console.log('hello');"></textarea>
     programNameEl.value = filterDisplayName(localStorage.getItem("seminar_program_name") || "");
   }
   updateStudentProgramNameLabels();
-  applyStudentUrlButtons();
 
   // theme (lite/dark/picnic)
   const themeKey = "seminar_theme";
@@ -548,6 +547,7 @@ console.log('hello');"></textarea>
   const urlSendTimers = new Map(); // clientId -> timeoutId
   let studentAssignedUrl1 = "";
   let studentAssignedUrl2 = "";
+  applyStudentUrlButtons();
 
   function scheduleRenderStudents() {
     if (role !== "teacher") return;
