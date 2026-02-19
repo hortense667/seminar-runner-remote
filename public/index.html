@@ -895,11 +895,19 @@ console.log('hello');"></textarea>
       a.target = "_blank";
       a.rel = "noopener";
       a.textContent = r.title;
+      const right = document.createElement("div");
+      right.className = "row";
+      right.style.flexWrap = "nowrap";
       const u = document.createElement("span");
       u.className = "muted";
       u.textContent = (r.url || "").replace(/^https?:\/\//i, "");
+      const openBtn = document.createElement("button");
+      openBtn.textContent = "開く";
+      openBtn.addEventListener("click", () => openUrlInNewTab(r.url || ""));
       row.appendChild(a);
-      row.appendChild(u);
+      right.appendChild(u);
+      right.appendChild(openBtn);
+      row.appendChild(right);
       resourcesList.appendChild(row);
     }
   }
