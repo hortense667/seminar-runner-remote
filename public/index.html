@@ -250,7 +250,7 @@
   <div class="row">
     <label class="muted">ルーム:</label>
     <input id="room" value="demo" style="padding:6px 8px;border:1px solid #ccc;border-radius:8px;" />
-    <label class="muted">なまえ:</label>
+    <label class="muted" id="nameLabel">なまえ:</label>
     <input id="name" value="" placeholder="任意（例: Tanaka）" style="padding:6px 8px;border:1px solid #ccc;border-radius:8px;" />
     <span class="muted" id="nameHelp"></span>
     <button class="primary" id="connectBtn">Connect</button>
@@ -431,6 +431,7 @@ console.log('hello');"></textarea>
   rolePill.textContent = role === "teacher" ? "TEACHER" : "STUDENT";
 
   const roomEl = document.getElementById("room");
+  const nameLabelEl = document.getElementById("nameLabel");
   const nameEl = document.getElementById("name");
   const nameHelpEl = document.getElementById("nameHelp");
   const themeSelect = document.getElementById("themeSelect");
@@ -508,6 +509,15 @@ console.log('hello');"></textarea>
 
   if (role === "teacher") {
     document.body.classList.add("teacher-mode");
+    if (nameLabelEl) nameLabelEl.textContent = "人数:";
+    if (nameHelpEl) nameHelpEl.textContent = "";
+    if (nameEl) {
+      nameEl.type = "number";
+      nameEl.min = "1";
+      nameEl.step = "1";
+      nameEl.value = String(Math.max(1, Number(localStorage.getItem("seminar_seat_count") || "20") || 20));
+      nameEl.placeholder = "例: 20";
+    }
     studentPane.style.display = "none";
     teacherPane.style.display = "block";
     document.getElementById("leftTitle").textContent = "講師ダッシュボード";
@@ -516,6 +526,13 @@ console.log('hello');"></textarea>
     if (globalLogsCard) globalLogsCard.style.display = "none";
   } else {
     document.body.classList.remove("teacher-mode");
+    if (nameLabelEl) nameLabelEl.textContent = "なまえ:";
+    if (nameEl) {
+      nameEl.type = "text";
+      nameEl.removeAttribute("min");
+      nameEl.removeAttribute("step");
+      nameEl.placeholder = "任意（例: Tanaka）";
+    }
     if (studentSignalWrap) studentSignalWrap.style.display = "flex";
     if (teacherControlsWrap) teacherControlsWrap.style.display = "none";
     if (globalLogsCard) globalLogsCard.style.display = "block";
@@ -531,7 +548,11 @@ console.log('hello');"></textarea>
 
   // remember last room/name
   roomEl.value = localStorage.getItem("seminar_room") || roomEl.value;
-  nameEl.value = filterDisplayName(localStorage.getItem("seminar_name") || nameEl.value);
+  if (role === "teacher") {
+    nameEl.value = String(Math.max(1, Number(localStorage.getItem("seminar_seat_count") || nameEl.value || "20") || 20));
+  } else {
+    nameEl.value = filterDisplayName(localStorage.getItem("seminar_name") || nameEl.value);
+  }
   if (programNameEl) {
     programNameEl.value = filterDisplayName(localStorage.getItem("seminar_program_name") || "");
   }
@@ -556,6 +577,10 @@ console.log('hello');"></textarea>
   let roomNameLocked = false;
   let teacherPopupWin = null;
   const memoSendTimers = new Map(); // clientId -> timeoutId
+  let teacherSeatCount = 20;
+  const seatAssignments = []; // index -> clientId|null
+  const seatDrafts = []; // index -> { memo, url1, url2 }
+  const clientSeatMap = new Map(); // clientId -> index
   let memoFocusState = null; // {clientId, selectionStart, selectionEnd, scrollLeft}
   let isRenderingStudents = false;
   let isMemoComposing = false;
@@ -571,6 +596,9 @@ console.log('hello');"></textarea>
   let studentAssignedUrl1 = "";
   let studentAssignedUrl2 = "";
   applyStudentUrlButtons();
+  if (role === "teacher") {
+    setTeacherSeatCount(nameEl?.value || localStorage.getItem("seminar_seat_count") || "20");
+  }
 
   function scheduleRenderStudents() {
     if (role !== "teacher") return;
@@ -644,6 +672,69 @@ console.log('hello');"></textarea>
     return out;
   }
 
+  function normalizeSeatCount(raw) {
+    const n = Math.floor(Number(raw));
+    if (!Number.isFinite(n) || n < 1) return 1;
+    if (n > 200) return 200;
+    return n;
+  }
+
+  function ensureSeatCapacity(nextCount) {
+    const count = normalizeSeatCount(nextCount);
+    while (seatAssignments.length < count) seatAssignments.push(null);
+    while (seatDrafts.length < count) seatDrafts.push({ memo: "", url1: "", url2: "" });
+    seatAssignments.length = count;
+    seatDrafts.length = count;
+    for (const [cid, idx] of [...clientSeatMap.entries()]) {
+      if (idx >= count) clientSeatMap.delete(cid);
+    }
+    teacherSeatCount = count;
+  }
+
+  function getSeatDraft(idx) {
+    if (!seatDrafts[idx]) seatDrafts[idx] = { memo: "", url1: "", url2: "" };
+    return seatDrafts[idx];
+  }
+
+  function setTeacherSeatCount(nextCount) {
+    ensureSeatCapacity(nextCount);
+    localStorage.setItem("seminar_seat_count", String(teacherSeatCount));
+    scheduleRenderStudents();
+  }
+
+  function assignClientToSeat(clientId) {
+    if (!clientId) return -1;
+    if (clientSeatMap.has(clientId)) return clientSeatMap.get(clientId);
+    let idx = seatAssignments.findIndex(v => !v);
+    if (idx < 0) {
+      idx = seatAssignments.length;
+      ensureSeatCapacity(idx + 1);
+      if (nameEl && role === "teacher") nameEl.value = String(teacherSeatCount);
+    }
+    seatAssignments[idx] = clientId;
+    clientSeatMap.set(clientId, idx);
+    const d = getSeatDraft(idx);
+    const s = teacherState.get(clientId) || { logs: [] };
+    s.url1 = s.url1 || d.url1 || "";
+    s.url2 = s.url2 || d.url2 || "";
+    if (!s.memo) s.memo = d.memo || "";
+    teacherState.set(clientId, s);
+    if (ws && ws.readyState === WebSocket.OPEN && (s.url1 || s.url2)) {
+      ws.send(JSON.stringify({ type: "url_update", clientId, url1: s.url1 || "", url2: s.url2 || "" }));
+    }
+    return idx;
+  }
+
+  function rebuildSeatAssignmentsFromState() {
+    ensureSeatCapacity(teacherSeatCount);
+    seatAssignments.fill(null);
+    clientSeatMap.clear();
+    const ids = [...teacherState.entries()]
+      .sort((a, b) => (a[1]?.lastSeen || 0) - (b[1]?.lastSeen || 0))
+      .map(([id]) => id);
+    for (const id of ids) assignClientToSeat(id);
+  }
+
   function toOpenableUrl(raw) {
     let url = normalizeUrlValue(raw);
     if (!url) return "";
@@ -715,7 +806,8 @@ console.log('hello');"></textarea>
   }
 
   function getNameSafe() {
-    return filterDisplayName(nameEl?.value || "") || (role === "teacher" ? "Teacher" : "Student");
+    if (role === "teacher") return "Teacher";
+    return filterDisplayName(nameEl?.value || "") || "Student";
   }
 
   function getRoomSafe() {
@@ -735,6 +827,7 @@ console.log('hello');"></textarea>
   }
 
   function applyNameLock() {
+    if (role !== "student") return;
     const locked = !!roomNameLocked;
     if (nameEl) nameEl.disabled = locked;
     if (nameHelpEl) nameHelpEl.textContent = locked ? "（講師が名前変更を禁止中）" : "";
@@ -1127,6 +1220,12 @@ ${code}
 
   // name: filename-safe-ish characters only + (if connected) share update
   nameEl?.addEventListener("input", () => {
+    if (role === "teacher") {
+      const count = normalizeSeatCount(nameEl.value || "20");
+      if (String(count) !== String(nameEl.value || "")) nameEl.value = String(count);
+      setTeacherSeatCount(count);
+      return;
+    }
     const filtered = filterDisplayName(nameEl.value);
     if (filtered !== nameEl.value) nameEl.value = filtered;
     localStorage.setItem("seminar_name", nameEl.value);
@@ -1519,12 +1618,14 @@ ${safeCode}
       urlFocusState = null;
     }
 
-    const arr = [...teacherState.entries()]
-      .map(([id, s]) => ({ id, ...s }))
-      .sort((a,b) => (b.lastSeen||0) - (a.lastSeen||0));
-
     studentsEl.innerHTML = "";
-    for (const s of arr) {
+    ensureSeatCapacity(teacherSeatCount);
+    for (let i = 0; i < teacherSeatCount; i++) {
+      const clientId = seatAssignments[i] || null;
+      const seatKey = clientId || `seat_${i + 1}`;
+      const connected = !!clientId;
+      const s = connected ? (teacherState.get(clientId) || { logs: [] }) : {};
+      const d = getSeatDraft(i);
       const row = document.createElement("div");
       row.className = "student";
 
@@ -1538,13 +1639,13 @@ ${safeCode}
 
       const name = document.createElement("span");
       name.className = "student-name";
-      name.textContent = s.name || "Student";
+      name.textContent = connected ? (s.name || `受講者${i + 1}`) : `${i + 1}. （未接続）`;
 
       left.appendChild(name);
 
       const right = document.createElement("div");
       right.className = "student-meta";
-      const ago = s.lastSeen ? `${Math.round((Date.now()-s.lastSeen)/1000)}s ago` : "";
+      const ago = connected && s.lastSeen ? `${Math.round((Date.now()-s.lastSeen)/1000)}s ago` : "";
       if (ago) {
         const agoEl = document.createElement("span");
         agoEl.className = "muted";
@@ -1565,16 +1666,18 @@ ${safeCode}
       head.appendChild(left);
       head.appendChild(right);
 
-      head.onclick = () => {
-        applyTeacherSelection(s.id, s);
-      };
+      if (connected) {
+        head.onclick = () => {
+          applyTeacherSelection(clientId, s);
+        };
+      }
 
       const memo = document.createElement("input");
       memo.type = "text";
       memo.className = "memo-input";
       memo.placeholder = "メモ（講師のみ）例）欠席 / PCトラブル / 質問…";
-      memo.dataset.memoFor = s.id;
-      memo.value = String(s.memo || "");
+      memo.dataset.memoFor = seatKey;
+      memo.value = String(connected ? (s.memo ?? d.memo ?? "") : (d.memo || ""));
       // フォーカスが外れているときは常に先頭表示に戻す
       memo.scrollLeft = 0;
 
@@ -1583,7 +1686,7 @@ ${safeCode}
       memo.addEventListener("compositionend", () => { isMemoComposing = false; });
       memo.addEventListener("focus", () => {
         memoFocusState = {
-          clientId: s.id,
+          clientId: seatKey,
           selectionStart: memo.selectionStart,
           selectionEnd: memo.selectionEnd,
           scrollLeft: memo.scrollLeft
@@ -1600,16 +1703,20 @@ ${safeCode}
         const next = String(memo.value || "").slice(0, 1000); // safety limit
         if (next !== memo.value) memo.value = next;
 
-        const cur = teacherState.get(s.id) || { logs: [] };
-        cur.memo = next;
-        teacherState.set(s.id, cur);
+        d.memo = next;
+        if (connected) {
+          const cur = teacherState.get(clientId) || { logs: [] };
+          cur.memo = next;
+          teacherState.set(clientId, cur);
+        }
 
+        if (!connected) return;
         if (!ws || ws.readyState !== WebSocket.OPEN) return;
-        const prevTimer = memoSendTimers.get(s.id);
+        const prevTimer = memoSendTimers.get(clientId);
         if (prevTimer) clearTimeout(prevTimer);
-        memoSendTimers.set(s.id, setTimeout(() => {
+        memoSendTimers.set(clientId, setTimeout(() => {
           try {
-            ws.send(JSON.stringify({ type: "memo_update", clientId: s.id, memo: next }));
+            ws.send(JSON.stringify({ type: "memo_update", clientId, memo: next }));
           } catch {}
         }, 350));
       });
@@ -1628,9 +1735,9 @@ ${safeCode}
       url1.type = "text";
       url1.className = "url-input";
       url1.placeholder = "https://...";
-      url1.dataset.urlFor = s.id;
+      url1.dataset.urlFor = seatKey;
       url1.dataset.urlSlot = "url1";
-      url1.value = String(s.url1 || "");
+      url1.value = String(connected ? (s.url1 ?? d.url1 ?? "") : (d.url1 || ""));
       const url1Open = document.createElement("button");
       url1Open.textContent = "開く";
       url1Open.addEventListener("click", (e) => {
@@ -1642,7 +1749,7 @@ ${safeCode}
       url1.addEventListener("compositionend", () => { isMemoComposing = false; });
       url1.addEventListener("focus", () => {
         urlFocusState = {
-          clientId: s.id,
+          clientId: seatKey,
           slot: "url1",
           selectionStart: url1.selectionStart,
           selectionEnd: url1.selectionEnd,
@@ -1655,15 +1762,19 @@ ${safeCode}
       url1.addEventListener("input", () => {
         const next = normalizeUrlValue(url1.value);
         if (next !== url1.value) url1.value = next;
-        const cur = teacherState.get(s.id) || { logs: [] };
-        cur.url1 = next;
-        teacherState.set(s.id, cur);
+        d.url1 = next;
+        if (connected) {
+          const cur = teacherState.get(clientId) || { logs: [] };
+          cur.url1 = next;
+          teacherState.set(clientId, cur);
+        }
+        if (!connected) return;
         if (!ws || ws.readyState !== WebSocket.OPEN) return;
-        const prevTimer = urlSendTimers.get(s.id);
+        const prevTimer = urlSendTimers.get(clientId);
         if (prevTimer) clearTimeout(prevTimer);
-        urlSendTimers.set(s.id, setTimeout(() => {
+        urlSendTimers.set(clientId, setTimeout(() => {
           try {
-            ws.send(JSON.stringify({ type: "url_update", clientId: s.id, url1: cur.url1 || "", url2: cur.url2 || "" }));
+            ws.send(JSON.stringify({ type: "url_update", clientId, url1: d.url1 || "", url2: d.url2 || "" }));
           } catch {}
         }, 350));
       });
@@ -1680,9 +1791,9 @@ ${safeCode}
       url2.type = "text";
       url2.className = "url-input";
       url2.placeholder = "https://...";
-      url2.dataset.urlFor = s.id;
+      url2.dataset.urlFor = seatKey;
       url2.dataset.urlSlot = "url2";
-      url2.value = String(s.url2 || "");
+      url2.value = String(connected ? (s.url2 ?? d.url2 ?? "") : (d.url2 || ""));
       const url2Open = document.createElement("button");
       url2Open.textContent = "開く";
       url2Open.addEventListener("click", (e) => {
@@ -1694,7 +1805,7 @@ ${safeCode}
       url2.addEventListener("compositionend", () => { isMemoComposing = false; });
       url2.addEventListener("focus", () => {
         urlFocusState = {
-          clientId: s.id,
+          clientId: seatKey,
           slot: "url2",
           selectionStart: url2.selectionStart,
           selectionEnd: url2.selectionEnd,
@@ -1707,15 +1818,19 @@ ${safeCode}
       url2.addEventListener("input", () => {
         const next = normalizeUrlValue(url2.value);
         if (next !== url2.value) url2.value = next;
-        const cur = teacherState.get(s.id) || { logs: [] };
-        cur.url2 = next;
-        teacherState.set(s.id, cur);
+        d.url2 = next;
+        if (connected) {
+          const cur = teacherState.get(clientId) || { logs: [] };
+          cur.url2 = next;
+          teacherState.set(clientId, cur);
+        }
+        if (!connected) return;
         if (!ws || ws.readyState !== WebSocket.OPEN) return;
-        const prevTimer = urlSendTimers.get(s.id);
+        const prevTimer = urlSendTimers.get(clientId);
         if (prevTimer) clearTimeout(prevTimer);
-        urlSendTimers.set(s.id, setTimeout(() => {
+        urlSendTimers.set(clientId, setTimeout(() => {
           try {
-            ws.send(JSON.stringify({ type: "url_update", clientId: s.id, url1: cur.url1 || "", url2: cur.url2 || "" }));
+            ws.send(JSON.stringify({ type: "url_update", clientId, url1: d.url1 || "", url2: d.url2 || "" }));
           } catch {}
         }, 350));
       });
@@ -1756,10 +1871,17 @@ ${safeCode}
   // ---------- WS connect ----------
   function connect() {
     const room = (roomEl.value || "demo").trim();
-    if (nameEl) nameEl.value = filterDisplayName(nameEl.value);
-    const name = (nameEl.value || "").trim() || (role === "teacher" ? "Teacher" : "Student");
+    let name = "Teacher";
+    if (role === "teacher") {
+      const count = normalizeSeatCount(nameEl?.value || localStorage.getItem("seminar_seat_count") || "20");
+      if (nameEl) nameEl.value = String(count);
+      setTeacherSeatCount(count);
+    } else {
+      if (nameEl) nameEl.value = filterDisplayName(nameEl.value);
+      name = (nameEl.value || "").trim() || "Student";
+    }
     localStorage.setItem("seminar_room", room);
-    localStorage.setItem("seminar_name", name);
+    if (role === "student") localStorage.setItem("seminar_name", name);
 
     // QR link update
     if (qrLink) qrLink.href = `/qr.html?room=${encodeURIComponent(room)}`;
@@ -1863,9 +1985,11 @@ ${safeCode}
         if (msg.type === "snapshot") {
           teacherState.clear();
           (msg.students || []).forEach(s => teacherState.set(s.clientId, s));
+          rebuildSeatAssignmentsFromState();
           scheduleRenderStudents();
         }
         if (msg.type === "program_update") {
+          assignClientToSeat(msg.clientId);
           const s = teacherState.get(msg.clientId) || { logs: [] };
           s.programName = msg.programName || "";
           s.lastSeen = msg.lastSeen || s.lastSeen;
@@ -1873,6 +1997,7 @@ ${safeCode}
           scheduleRenderStudents();
         }
         if (msg.type === "signal_update") {
+          assignClientToSeat(msg.clientId);
           const s = teacherState.get(msg.clientId) || { logs: [] };
           s.signal = msg.signal || "";
           s.lastSeen = msg.lastSeen || s.lastSeen;
@@ -1880,12 +2005,15 @@ ${safeCode}
           scheduleRenderStudents();
         }
         if (msg.type === "memo_update") {
+          const idx = assignClientToSeat(msg.clientId);
           const s = teacherState.get(msg.clientId) || { logs: [] };
           s.memo = String(msg.memo || "");
           teacherState.set(msg.clientId, s);
+          if (idx >= 0) getSeatDraft(idx).memo = s.memo || "";
           scheduleRenderStudents();
         }
         if (msg.type === "name_update") {
+          assignClientToSeat(msg.clientId);
           const s = teacherState.get(msg.clientId) || { logs: [] };
           s.name = msg.name;
           s.lastSeen = msg.lastSeen;
@@ -1894,15 +2022,18 @@ ${safeCode}
         }
         if (msg.type === "student_joined") {
           teacherState.set(msg.clientId, { name: msg.name, code: "", logs: [], memo: "", programName: "", url1: msg.url1 || "", url2: msg.url2 || "", lastSeen: msg.lastSeen });
+          assignClientToSeat(msg.clientId);
           scheduleRenderStudents();
         }
         if (msg.type === "student_left") {
+          assignClientToSeat(msg.clientId);
           const s = teacherState.get(msg.clientId) || {};
           s.lastSeen = msg.lastSeen;
           teacherState.set(msg.clientId, s);
           scheduleRenderStudents();
         }
         if (msg.type === "code_update") {
+          assignClientToSeat(msg.clientId);
           const s = teacherState.get(msg.clientId) || { logs: [] };
           s.name = msg.name;
           s.code = msg.code;
@@ -1919,14 +2050,21 @@ ${safeCode}
           scheduleRenderStudents();
         }
         if (msg.type === "url_update") {
+          const idx = assignClientToSeat(msg.clientId);
           const s = teacherState.get(msg.clientId) || { logs: [] };
           s.url1 = msg.url1 || "";
           s.url2 = msg.url2 || "";
           s.lastSeen = msg.lastSeen || s.lastSeen;
           teacherState.set(msg.clientId, s);
+          if (idx >= 0) {
+            const d = getSeatDraft(idx);
+            d.url1 = s.url1 || "";
+            d.url2 = s.url2 || "";
+          }
           scheduleRenderStudents();
         }
         if (msg.type === "log") {
+          assignClientToSeat(msg.clientId);
           const s = teacherState.get(msg.clientId) || { logs: [] };
           s.name = msg.name;
           s.logs = (s.logs || []).slice(-400);
@@ -1947,6 +2085,7 @@ ${safeCode}
           scheduleRenderStudents();
         }
         if (msg.type === "clear_logs") {
+          assignClientToSeat(msg.clientId);
           const s = teacherState.get(msg.clientId);
           if (s) {
             s.logs = [];
