@@ -255,6 +255,7 @@ wss.on("connection", (ws) => {
         ws.send(JSON.stringify({ type: "room_state", room: roomId, nameLock: !!room.nameLock }));
         ws.send(JSON.stringify({ type: "resources_state", room: roomId, resources: room.resources || [] }));
         ws.send(JSON.stringify({ type: "teacher_message_state", room: roomId, message: room.teacherMessage || "" }));
+        ws.send(JSON.stringify({ type: "url_update", url1: prev?.url1 || "", url2: prev?.url2 || "" }));
       }
       return;
     }
