@@ -696,16 +696,27 @@ console.log('hello');"></textarea>
     return seatDrafts[idx];
   }
 
-  function setTeacherSeatCount(nextCount) {
+  function setTeacherSeatCount(nextCount, options = {}) {
+    const silent = !!options.silent;
     ensureSeatCapacity(nextCount);
     localStorage.setItem("seminar_seat_count", String(teacherSeatCount));
+    if (!silent && role === "teacher" && ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "seat_plan_update", count: teacherSeatCount }));
+    }
     scheduleRenderStudents();
   }
 
-  function assignClientToSeat(clientId) {
+  function assignClientToSeat(clientId, preferredIdx = -1) {
     if (!clientId) return -1;
     if (clientSeatMap.has(clientId)) return clientSeatMap.get(clientId);
-    let idx = seatAssignments.findIndex(v => !v);
+    let idx = -1;
+    if (Number.isInteger(preferredIdx) && preferredIdx >= 0) {
+      ensureSeatCapacity(preferredIdx + 1);
+      if (!seatAssignments[preferredIdx] || seatAssignments[preferredIdx] === clientId) {
+        idx = preferredIdx;
+      }
+    }
+    if (idx < 0) idx = seatAssignments.findIndex(v => !v);
     if (idx < 0) {
       idx = seatAssignments.length;
       ensureSeatCapacity(idx + 1);
@@ -723,6 +734,36 @@ console.log('hello');"></textarea>
       ws.send(JSON.stringify({ type: "url_update", clientId, url1: s.url1 || "", url2: s.url2 || "" }));
     }
     return idx;
+  }
+
+  function applySeatPlanState(payload) {
+    if (role !== "teacher") return;
+    const count = normalizeSeatCount(payload?.count || 20);
+    ensureSeatCapacity(count);
+    seatAssignments.fill(null);
+    clientSeatMap.clear();
+    const seats = Array.isArray(payload?.seats) ? payload.seats : [];
+    for (let i = 0; i < teacherSeatCount; i++) {
+      const src = seats[i] || {};
+      const cid = src.clientId ? String(src.clientId) : null;
+      seatAssignments[i] = cid;
+      if (cid) clientSeatMap.set(cid, i);
+      seatDrafts[i] = {
+        memo: String(src.memo || ""),
+        url1: normalizeUrlValue(src.url1 || ""),
+        url2: normalizeUrlValue(src.url2 || "")
+      };
+      if (cid) {
+        const s = teacherState.get(cid) || { logs: [] };
+        if (!s.memo) s.memo = seatDrafts[i].memo;
+        if (!s.url1) s.url1 = seatDrafts[i].url1;
+        if (!s.url2) s.url2 = seatDrafts[i].url2;
+        teacherState.set(cid, s);
+      }
+    }
+    if (nameEl) nameEl.value = String(teacherSeatCount);
+    localStorage.setItem("seminar_seat_count", String(teacherSeatCount));
+    scheduleRenderStudents();
   }
 
   function rebuildSeatAssignmentsFromState() {
@@ -1710,8 +1751,9 @@ ${safeCode}
           teacherState.set(clientId, cur);
         }
 
-        if (!connected) return;
         if (!ws || ws.readyState !== WebSocket.OPEN) return;
+        try { ws.send(JSON.stringify({ type: "seat_plan_update", seatIndex: i, memo: d.memo || "" })); } catch {}
+        if (!connected) return;
         const prevTimer = memoSendTimers.get(clientId);
         if (prevTimer) clearTimeout(prevTimer);
         memoSendTimers.set(clientId, setTimeout(() => {
@@ -1768,8 +1810,9 @@ ${safeCode}
           cur.url1 = next;
           teacherState.set(clientId, cur);
         }
-        if (!connected) return;
         if (!ws || ws.readyState !== WebSocket.OPEN) return;
+        try { ws.send(JSON.stringify({ type: "seat_plan_update", seatIndex: i, url1: d.url1 || "" })); } catch {}
+        if (!connected) return;
         const prevTimer = urlSendTimers.get(clientId);
         if (prevTimer) clearTimeout(prevTimer);
         urlSendTimers.set(clientId, setTimeout(() => {
@@ -1824,8 +1867,9 @@ ${safeCode}
           cur.url2 = next;
           teacherState.set(clientId, cur);
         }
-        if (!connected) return;
         if (!ws || ws.readyState !== WebSocket.OPEN) return;
+        try { ws.send(JSON.stringify({ type: "seat_plan_update", seatIndex: i, url2: d.url2 || "" })); } catch {}
+        if (!connected) return;
         const prevTimer = urlSendTimers.get(clientId);
         if (prevTimer) clearTimeout(prevTimer);
         urlSendTimers.set(clientId, setTimeout(() => {
@@ -1899,6 +1943,9 @@ ${safeCode}
         name,
         clientId: role === "student" ? clientId : null
       }));
+      if (role === "teacher") {
+        ws.send(JSON.stringify({ type: "seat_plan_update", count: teacherSeatCount }));
+      }
       if (role === "student") {
         ws.send(JSON.stringify({ type: "code_update", code: codeEl.value || "" }));
         setStudentSignal(""); // reset on connect
@@ -1923,6 +1970,11 @@ ${safeCode}
         // teacher can edit; others view only
         if (resourcesEditBtn) resourcesEditBtn.style.display = (role === "teacher" && !resourcesEditMode) ? "inline-block" : "none";
         if (!resourcesEditMode) renderResourcesView();
+        return;
+      }
+
+      if (msg.type === "seat_plan_state" && role === "teacher") {
+        applySeatPlanState(msg);
         return;
       }
 
@@ -1985,7 +2037,7 @@ ${safeCode}
         if (msg.type === "snapshot") {
           teacherState.clear();
           (msg.students || []).forEach(s => teacherState.set(s.clientId, s));
-          rebuildSeatAssignmentsFromState();
+          if (!seatAssignments.some(Boolean)) rebuildSeatAssignmentsFromState();
           scheduleRenderStudents();
         }
         if (msg.type === "program_update") {
@@ -2022,7 +2074,7 @@ ${safeCode}
         }
         if (msg.type === "student_joined") {
           teacherState.set(msg.clientId, { name: msg.name, code: "", logs: [], memo: "", programName: "", url1: msg.url1 || "", url2: msg.url2 || "", lastSeen: msg.lastSeen });
-          assignClientToSeat(msg.clientId);
+          assignClientToSeat(msg.clientId, Number.isInteger(msg.seatIndex) ? msg.seatIndex : -1);
           scheduleRenderStudents();
         }
         if (msg.type === "student_left") {
