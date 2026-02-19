@@ -193,12 +193,16 @@
     .muted { color: var(--muted); font-size: 12px; }
     #logs { white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.35; max-height: 420px; overflow:auto; }
     #students { max-height: 320px; overflow:auto; }
-    .student { padding: 8px 10px; border-bottom: 1px solid var(--border); display:flex; align-items:center; gap:10px; }
+    .student { padding: 8px 10px; border-bottom: 1px solid var(--border); display:flex; align-items:flex-start; gap:10px; }
     .student-head { flex: 0 0 auto; min-width: 200px; display:flex; justify-content:space-between; align-items:baseline; gap:10px; cursor: pointer; }
     .student-name { font-weight: 600; }
     .student-meta { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
     .student-id { font-size: 11px; color: var(--muted); }
     .memo-input { flex: 1 1 auto; min-width: 160px; box-sizing:border-box; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.35; padding: 7px 10px; border:1px solid var(--border); border-radius:10px; background: var(--panel); color: var(--text); height: 34px; }
+    .student-fields { flex: 1 1 auto; display:flex; gap:8px; align-items:center; flex-wrap: wrap; }
+    .url-edit { display:flex; gap:6px; align-items:center; flex: 1 1 420px; min-width: 320px; }
+    .url-input { flex: 1 1 auto; min-width: 200px; box-sizing:border-box; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.35; padding: 7px 10px; border:1px solid var(--border); border-radius:10px; background: var(--panel); color: var(--text); height: 54px; resize: vertical; }
+    .header-url-wrap { flex: 1 1 100%; }
     .tag { font-size: 11px; padding: 2px 6px; border: 1px solid var(--tag-off-border); border-radius: 999px; }
     .tag-off { background: var(--tag-off-bg); border-color: var(--tag-off-border); color: var(--tag-off-text); }
     .tag-done-on { background: var(--tag-done-bg); border-color: var(--tag-done-bg); color:#fff; }
@@ -258,6 +262,14 @@
     <button class="soft" id="studentDoneBtn" title="講師に「できました」を通知">できました</button>
     <button class="soft" id="studentQuestionBtn" title="講師に「質問あり」を通知">質問あり</button>
     <button class="soft" id="studentResourcesBtn" title="関係資料">関係資料</button>
+  </span>
+  <span class="row header-url-wrap" id="studentUrlWrap" style="display:none;">
+    <span class="muted">URL1:</span>
+    <textarea id="studentUrl1" class="url-input" rows="2" placeholder="https://..."></textarea>
+    <button id="studentUrl1OpenBtn">別タブで開く</button>
+    <span class="muted">URL2:</span>
+    <textarea id="studentUrl2" class="url-input" rows="2" placeholder="https://..."></textarea>
+    <button id="studentUrl2OpenBtn">別タブで開く</button>
   </span>
   <span class="row" id="teacherControlsWrap" style="margin-left:auto;display:none;">
     <input class="teacher-msg-input" id="teacherMsgInput" placeholder="受講者へメッセージ（例: 5分休憩 / 〇〇に進んでください）" />
@@ -418,6 +430,11 @@ console.log('hello');"></textarea>
   const studentDoneBtn = document.getElementById("studentDoneBtn");
   const studentQuestionBtn = document.getElementById("studentQuestionBtn");
   const studentResourcesBtn = document.getElementById("studentResourcesBtn");
+  const studentUrlWrap = document.getElementById("studentUrlWrap");
+  const studentUrl1El = document.getElementById("studentUrl1");
+  const studentUrl2El = document.getElementById("studentUrl2");
+  const studentUrl1OpenBtn = document.getElementById("studentUrl1OpenBtn");
+  const studentUrl2OpenBtn = document.getElementById("studentUrl2OpenBtn");
   const teacherControlsWrap = document.getElementById("teacherControlsWrap");
   const teacherMsgInput = document.getElementById("teacherMsgInput");
   const teacherMsgSendBtn = document.getElementById("teacherMsgSendBtn");
@@ -487,6 +504,7 @@ console.log('hello');"></textarea>
   } else {
     if (studentSignalWrap) studentSignalWrap.style.display = "flex";
     if (teacherControlsWrap) teacherControlsWrap.style.display = "none";
+    if (studentUrlWrap) studentUrlWrap.style.display = "flex";
   }
 
   // Persistent clientId per device
@@ -503,6 +521,8 @@ console.log('hello');"></textarea>
   if (programNameEl) {
     programNameEl.value = filterDisplayName(localStorage.getItem("seminar_program_name") || "");
   }
+  if (studentUrl1El) studentUrl1El.value = String(localStorage.getItem("seminar_url1") || "");
+  if (studentUrl2El) studentUrl2El.value = String(localStorage.getItem("seminar_url2") || "");
   updateStudentProgramNameLabels();
 
   // theme (lite/dark/picnic)
@@ -527,6 +547,7 @@ console.log('hello');"></textarea>
   let memoFocusState = null; // {clientId, selectionStart, selectionEnd, scrollLeft}
   let isRenderingStudents = false;
   let isMemoComposing = false;
+  let urlFocusState = null;
   let renderStudentsTimer = null;
   let studentSignal = ""; // "" | "done" | "question"
   let writebackTargetId = null;
@@ -534,6 +555,8 @@ console.log('hello');"></textarea>
   let helpLoaded = false;
   let roomResources = []; // Array<{title,url}>
   let resourcesEditMode = false;
+  const urlSendTimers = new Map(); // clientId -> timeoutId
+  let studentUrlSendTimer = null;
 
   function scheduleRenderStudents() {
     if (role !== "teacher") return;
@@ -569,6 +592,16 @@ console.log('hello');"></textarea>
 
   function clearLogsUI() { logsEl.textContent = ""; }
 
+  function openUrlInNewTab(raw) {
+    const url = String(raw || "").trim();
+    if (!url) return;
+    if (!/^https?:\/\//i.test(url)) {
+      alert("URLは http:// または https:// から始めてください。");
+      return;
+    }
+    window.open(url, "_blank", "noopener");
+  }
+
   function supportsUnicodeProps() {
     try { new RegExp("\\p{L}", "u"); return true; } catch { return false; }
   }
@@ -582,6 +615,12 @@ console.log('hello');"></textarea>
     let out = text.replace(re, "");
     out = out.replace(/\s+/g, " ").trim();
     if (out.length > 40) out = out.slice(0, 40);
+    return out;
+  }
+
+  function normalizeUrlValue(raw) {
+    let out = String(raw || "").trim();
+    if (out.length > 2000) out = out.slice(0, 2000);
     return out;
   }
 
@@ -753,6 +792,21 @@ console.log('hello');"></textarea>
     if (role !== "student") return;
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
     ws.send(JSON.stringify({ type: "signal_update", signal: studentSignal }));
+  }
+
+  function applyStudentUrlState(url1, url2) {
+    if (role !== "student") return;
+    const activeId = document.activeElement?.id;
+    const next1 = normalizeUrlValue(url1 || "");
+    const next2 = normalizeUrlValue(url2 || "");
+    if (studentUrl1El && activeId !== "studentUrl1") {
+      studentUrl1El.value = next1;
+      localStorage.setItem("seminar_url1", next1);
+    }
+    if (studentUrl2El && activeId !== "studentUrl2") {
+      studentUrl2El.value = next2;
+      localStorage.setItem("seminar_url2", next2);
+    }
   }
 
   function applyTeacherMessageUI(msg) {
@@ -950,6 +1004,34 @@ ${code}
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
     ws.send(JSON.stringify({ type: "program_update", programName: getProgramNameSafe() }));
   });
+
+  function scheduleStudentUrlSend() {
+    if (studentUrlSendTimer) clearTimeout(studentUrlSendTimer);
+    studentUrlSendTimer = setTimeout(() => {
+      if (role !== "student") return;
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      const url1 = normalizeUrlValue(studentUrl1El?.value || "");
+      const url2 = normalizeUrlValue(studentUrl2El?.value || "");
+      ws.send(JSON.stringify({ type: "url_update", url1, url2 }));
+    }, 350);
+  }
+
+  studentUrl1El?.addEventListener("input", () => {
+    const next = normalizeUrlValue(studentUrl1El.value);
+    if (next !== studentUrl1El.value) studentUrl1El.value = next;
+    localStorage.setItem("seminar_url1", studentUrl1El.value);
+    scheduleStudentUrlSend();
+  });
+
+  studentUrl2El?.addEventListener("input", () => {
+    const next = normalizeUrlValue(studentUrl2El.value);
+    if (next !== studentUrl2El.value) studentUrl2El.value = next;
+    localStorage.setItem("seminar_url2", studentUrl2El.value);
+    scheduleStudentUrlSend();
+  });
+
+  studentUrl1OpenBtn?.addEventListener("click", () => openUrlInNewTab(studentUrl1El?.value || ""));
+  studentUrl2OpenBtn?.addEventListener("click", () => openUrlInNewTab(studentUrl2El?.value || ""));
 
   studentDoneBtn?.addEventListener("click", () => {
     if (role !== "student") return;
@@ -1396,6 +1478,7 @@ ${safeCode}
     const listScrollTop = studentsEl.scrollTop;
     const active = document.activeElement;
     const hadMemoFocus = active && active.tagName === "INPUT" && active.dataset && active.dataset.memoFor;
+    const hadUrlFocus = active && active.tagName === "TEXTAREA" && active.dataset && active.dataset.urlFor && active.dataset.urlSlot;
     if (hadMemoFocus) {
       memoFocusState = {
         clientId: active.dataset.memoFor,
@@ -1405,6 +1488,18 @@ ${safeCode}
       };
     } else {
       memoFocusState = null;
+    }
+    if (hadUrlFocus) {
+      urlFocusState = {
+        clientId: active.dataset.urlFor,
+        slot: active.dataset.urlSlot,
+        selectionStart: active.selectionStart,
+        selectionEnd: active.selectionEnd,
+        scrollLeft: active.scrollLeft,
+        scrollTop: active.scrollTop
+      };
+    } else {
+      urlFocusState = null;
     }
 
     const arr = [...teacherState.entries()]
@@ -1502,8 +1597,122 @@ ${safeCode}
         }, 350));
       });
 
+      const fields = document.createElement("div");
+      fields.className = "student-fields";
+
+      fields.appendChild(memo);
+
+      const url1Wrap = document.createElement("div");
+      url1Wrap.className = "url-edit";
+      const url1Label = document.createElement("span");
+      url1Label.className = "muted";
+      url1Label.textContent = "URL1";
+      const url1 = document.createElement("textarea");
+      url1.className = "url-input";
+      url1.rows = 2;
+      url1.placeholder = "https://...";
+      url1.dataset.urlFor = s.id;
+      url1.dataset.urlSlot = "url1";
+      url1.value = String(s.url1 || "");
+      const url1Open = document.createElement("button");
+      url1Open.textContent = "別タブ";
+      url1Open.addEventListener("click", (e) => {
+        e.stopPropagation();
+        openUrlInNewTab(url1.value);
+      });
+      url1.addEventListener("click", (e) => e.stopPropagation());
+      url1.addEventListener("compositionstart", () => { isMemoComposing = true; });
+      url1.addEventListener("compositionend", () => { isMemoComposing = false; });
+      url1.addEventListener("focus", () => {
+        urlFocusState = {
+          clientId: s.id,
+          slot: "url1",
+          selectionStart: url1.selectionStart,
+          selectionEnd: url1.selectionEnd,
+          scrollLeft: url1.scrollLeft,
+          scrollTop: url1.scrollTop
+        };
+      });
+      url1.addEventListener("blur", () => {
+        if (!isRenderingStudents) urlFocusState = null;
+      });
+      url1.addEventListener("input", () => {
+        const next = normalizeUrlValue(url1.value);
+        if (next !== url1.value) url1.value = next;
+        const cur = teacherState.get(s.id) || { logs: [] };
+        cur.url1 = next;
+        teacherState.set(s.id, cur);
+        if (!ws || ws.readyState !== WebSocket.OPEN) return;
+        const prevTimer = urlSendTimers.get(s.id);
+        if (prevTimer) clearTimeout(prevTimer);
+        urlSendTimers.set(s.id, setTimeout(() => {
+          try {
+            ws.send(JSON.stringify({ type: "url_update", clientId: s.id, url1: cur.url1 || "", url2: cur.url2 || "" }));
+          } catch {}
+        }, 350));
+      });
+      url1Wrap.appendChild(url1Label);
+      url1Wrap.appendChild(url1);
+      url1Wrap.appendChild(url1Open);
+
+      const url2Wrap = document.createElement("div");
+      url2Wrap.className = "url-edit";
+      const url2Label = document.createElement("span");
+      url2Label.className = "muted";
+      url2Label.textContent = "URL2";
+      const url2 = document.createElement("textarea");
+      url2.className = "url-input";
+      url2.rows = 2;
+      url2.placeholder = "https://...";
+      url2.dataset.urlFor = s.id;
+      url2.dataset.urlSlot = "url2";
+      url2.value = String(s.url2 || "");
+      const url2Open = document.createElement("button");
+      url2Open.textContent = "別タブ";
+      url2Open.addEventListener("click", (e) => {
+        e.stopPropagation();
+        openUrlInNewTab(url2.value);
+      });
+      url2.addEventListener("click", (e) => e.stopPropagation());
+      url2.addEventListener("compositionstart", () => { isMemoComposing = true; });
+      url2.addEventListener("compositionend", () => { isMemoComposing = false; });
+      url2.addEventListener("focus", () => {
+        urlFocusState = {
+          clientId: s.id,
+          slot: "url2",
+          selectionStart: url2.selectionStart,
+          selectionEnd: url2.selectionEnd,
+          scrollLeft: url2.scrollLeft,
+          scrollTop: url2.scrollTop
+        };
+      });
+      url2.addEventListener("blur", () => {
+        if (!isRenderingStudents) urlFocusState = null;
+      });
+      url2.addEventListener("input", () => {
+        const next = normalizeUrlValue(url2.value);
+        if (next !== url2.value) url2.value = next;
+        const cur = teacherState.get(s.id) || { logs: [] };
+        cur.url2 = next;
+        teacherState.set(s.id, cur);
+        if (!ws || ws.readyState !== WebSocket.OPEN) return;
+        const prevTimer = urlSendTimers.get(s.id);
+        if (prevTimer) clearTimeout(prevTimer);
+        urlSendTimers.set(s.id, setTimeout(() => {
+          try {
+            ws.send(JSON.stringify({ type: "url_update", clientId: s.id, url1: cur.url1 || "", url2: cur.url2 || "" }));
+          } catch {}
+        }, 350));
+      });
+      url2Wrap.appendChild(url2Label);
+      url2Wrap.appendChild(url2);
+      url2Wrap.appendChild(url2Open);
+
+      fields.appendChild(url1Wrap);
+      fields.appendChild(url2Wrap);
+
       row.appendChild(head);
-      row.appendChild(memo);
+      row.appendChild(fields);
       studentsEl.appendChild(row);
     }
 
@@ -1514,6 +1723,15 @@ ${safeCode}
         el.focus();
         try { el.setSelectionRange(memoFocusState.selectionStart, memoFocusState.selectionEnd); } catch {}
         el.scrollLeft = memoFocusState.scrollLeft || 0;
+      }
+    }
+    if (urlFocusState && urlFocusState.clientId && urlFocusState.slot) {
+      const el = studentsEl.querySelector(`textarea[data-url-for="${urlFocusState.clientId}"][data-url-slot="${urlFocusState.slot}"]`);
+      if (el) {
+        el.focus();
+        try { el.setSelectionRange(urlFocusState.selectionStart, urlFocusState.selectionEnd); } catch {}
+        el.scrollLeft = urlFocusState.scrollLeft || 0;
+        el.scrollTop = urlFocusState.scrollTop || 0;
       }
     }
     } finally {
@@ -1547,6 +1765,7 @@ ${safeCode}
       }));
       if (role === "student") {
         ws.send(JSON.stringify({ type: "code_update", code: codeEl.value || "" }));
+        ws.send(JSON.stringify({ type: "url_update", url1: normalizeUrlValue(studentUrl1El?.value || ""), url2: normalizeUrlValue(studentUrl2El?.value || "") }));
         setStudentSignal(""); // reset on connect
       }
     };
@@ -1611,6 +1830,11 @@ ${safeCode}
         return;
       }
 
+      if (msg.type === "url_update" && role === "student") {
+        applyStudentUrlState(msg.url1 || "", msg.url2 || "");
+        return;
+      }
+
       if (role === "teacher") {
         if (msg.type === "force_code_result") {
           if (writebackPendingTimer) { clearTimeout(writebackPendingTimer); writebackPendingTimer = null; }
@@ -1656,7 +1880,7 @@ ${safeCode}
           scheduleRenderStudents();
         }
         if (msg.type === "student_joined") {
-          teacherState.set(msg.clientId, { name: msg.name, code: "", logs: [], memo: "", programName: "", lastSeen: msg.lastSeen });
+          teacherState.set(msg.clientId, { name: msg.name, code: "", logs: [], memo: "", programName: "", url1: msg.url1 || "", url2: msg.url2 || "", lastSeen: msg.lastSeen });
           scheduleRenderStudents();
         }
         if (msg.type === "student_left") {
@@ -1679,6 +1903,14 @@ ${safeCode}
               teacherProgramName.textContent = s.programName ? `プログラム名: ${s.programName}` : "";
             }
           }
+          scheduleRenderStudents();
+        }
+        if (msg.type === "url_update") {
+          const s = teacherState.get(msg.clientId) || { logs: [] };
+          s.url1 = msg.url1 || "";
+          s.url2 = msg.url2 || "";
+          s.lastSeen = msg.lastSeen || s.lastSeen;
+          teacherState.set(msg.clientId, s);
           scheduleRenderStudents();
         }
         if (msg.type === "log") {
