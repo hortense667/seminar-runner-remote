@@ -199,13 +199,10 @@
     .student-name { font-weight: 600; }
     .student-meta { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
     .student-id { font-size: 11px; color: var(--muted); }
-    .memo-input { width: 150px; min-width: 120px; box-sizing:border-box; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; padding: 6px 8px; border:1px solid var(--border); border-radius:8px; background: var(--panel); color: var(--text); height: 30px; }
+    .memo-input { width: auto; min-width: 120px; flex: 1 1 0; box-sizing:border-box; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; padding: 6px 8px; border:1px solid var(--border); border-radius:8px; background: var(--panel); color: var(--text); height: 30px; }
     .student-fields { flex: 1 1 auto; min-width: 0; display:flex; gap:6px; align-items:center; flex-wrap:nowrap; overflow:hidden; }
     .url-edit { display:flex; gap:6px; align-items:center; min-width: 0; flex: 1 1 0; overflow:hidden; }
     .url-input { width: 100%; min-width: 120px; box-sizing:border-box; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; padding: 6px 8px; border:1px solid var(--border); border-radius:8px; background: var(--panel); color: var(--text); height: 30px; }
-    .student-url-bar { display:none; padding: 8px 12px; border-bottom: 1px solid var(--border); background: var(--panel-alt); }
-    .student-url-row { display:flex; gap:6px; align-items:center; flex-wrap:nowrap; overflow:hidden; }
-    .student-url-row .url-input { min-width: 160px; flex: 1 1 0; }
     .tag { font-size: 11px; padding: 2px 6px; border: 1px solid var(--tag-off-border); border-radius: 999px; }
     .tag-off { background: var(--tag-off-bg); border-color: var(--tag-off-border); color: var(--tag-off-text); }
     .tag-done-on { background: var(--tag-done-bg); border-color: var(--tag-done-bg); color:#fff; }
@@ -234,7 +231,7 @@
     body.student-maximized #studentMaxBar { display: flex; }
     body.student-maximized #studentRunnerWrap { position: fixed; inset: 60px 12px 12px 12px; z-index: 1001; border: 1px solid #ddd; border-radius: 12px; background: #fff; padding: 8px; }
     body.student-maximized #studentRunnerWrap iframe { height: 100%; }
-    @media (max-width: 980px) { main { grid-template-columns: 1fr; } .student-fields, .student-url-row { flex-wrap: wrap; } }
+    @media (max-width: 980px) { main { grid-template-columns: 1fr; } .student-fields { flex-wrap: wrap; } }
   </style>
 </head>
 <body class="theme-lite">
@@ -264,6 +261,8 @@
     <span class="teacher-msg empty" id="teacherMsg" title="講師からのメッセージ"></span>
     <button class="soft" id="studentDoneBtn" title="講師に「できました」を通知">できました</button>
     <button class="soft" id="studentQuestionBtn" title="講師に「質問あり」を通知">質問あり</button>
+    <button class="soft" id="studentUrl1Btn" title="URL1を別タブで開く">URL1</button>
+    <button class="soft" id="studentUrl2Btn" title="URL2を別タブで開く">URL2</button>
     <button class="soft" id="studentResourcesBtn" title="関係資料">関係資料</button>
   </span>
   <span class="row" id="teacherControlsWrap" style="margin-left:auto;display:none;">
@@ -281,17 +280,6 @@
     <button class="soft" id="teacherResourcesBtn" title="関係資料">関係資料</button>
   </span>
 </header>
-<div id="studentUrlWrap" class="student-url-bar">
-  <div class="student-url-row">
-    <span class="muted">URL1:</span>
-    <input id="studentUrl1" class="url-input" placeholder="https://..." />
-    <button id="studentUrl1OpenBtn">別タブで開く</button>
-    <span class="muted">URL2:</span>
-    <input id="studentUrl2" class="url-input" placeholder="https://..." />
-    <button id="studentUrl2OpenBtn">別タブで開く</button>
-  </div>
-</div>
-
 <main>
   <section class="card" id="leftCard">
     <h3 id="leftTitle">コード</h3>
@@ -434,12 +422,9 @@ console.log('hello');"></textarea>
   const teacherMsg = document.getElementById("teacherMsg");
   const studentDoneBtn = document.getElementById("studentDoneBtn");
   const studentQuestionBtn = document.getElementById("studentQuestionBtn");
+  const studentUrl1Btn = document.getElementById("studentUrl1Btn");
+  const studentUrl2Btn = document.getElementById("studentUrl2Btn");
   const studentResourcesBtn = document.getElementById("studentResourcesBtn");
-  const studentUrlWrap = document.getElementById("studentUrlWrap");
-  const studentUrl1El = document.getElementById("studentUrl1");
-  const studentUrl2El = document.getElementById("studentUrl2");
-  const studentUrl1OpenBtn = document.getElementById("studentUrl1OpenBtn");
-  const studentUrl2OpenBtn = document.getElementById("studentUrl2OpenBtn");
   const teacherControlsWrap = document.getElementById("teacherControlsWrap");
   const teacherMsgInput = document.getElementById("teacherMsgInput");
   const teacherMsgSendBtn = document.getElementById("teacherMsgSendBtn");
@@ -506,13 +491,11 @@ console.log('hello');"></textarea>
     teacherPane.style.display = "block";
     document.getElementById("leftTitle").textContent = "講師ダッシュボード";
     if (studentSignalWrap) studentSignalWrap.style.display = "none";
-    if (studentUrlWrap) studentUrlWrap.style.display = "none";
     if (teacherControlsWrap) teacherControlsWrap.style.display = "flex";
   } else {
     document.body.classList.remove("teacher-mode");
     if (studentSignalWrap) studentSignalWrap.style.display = "flex";
     if (teacherControlsWrap) teacherControlsWrap.style.display = "none";
-    if (studentUrlWrap) studentUrlWrap.style.display = "block";
   }
 
   // Persistent clientId per device
@@ -529,9 +512,8 @@ console.log('hello');"></textarea>
   if (programNameEl) {
     programNameEl.value = filterDisplayName(localStorage.getItem("seminar_program_name") || "");
   }
-  if (studentUrl1El) studentUrl1El.value = String(localStorage.getItem("seminar_url1") || "");
-  if (studentUrl2El) studentUrl2El.value = String(localStorage.getItem("seminar_url2") || "");
   updateStudentProgramNameLabels();
+  applyStudentUrlButtons();
 
   // theme (lite/dark/picnic)
   const themeKey = "seminar_theme";
@@ -564,7 +546,8 @@ console.log('hello');"></textarea>
   let roomResources = []; // Array<{title,url}>
   let resourcesEditMode = false;
   const urlSendTimers = new Map(); // clientId -> timeoutId
-  let studentUrlSendTimer = null;
+  let studentAssignedUrl1 = "";
+  let studentAssignedUrl2 = "";
 
   function scheduleRenderStudents() {
     if (role !== "teacher") return;
@@ -802,19 +785,24 @@ console.log('hello');"></textarea>
     ws.send(JSON.stringify({ type: "signal_update", signal: studentSignal }));
   }
 
+  function applyStudentUrlButtons() {
+    const has1 = !!studentAssignedUrl1;
+    const has2 = !!studentAssignedUrl2;
+    if (studentUrl1Btn) {
+      studentUrl1Btn.disabled = !has1;
+      studentUrl1Btn.title = has1 ? studentAssignedUrl1 : "講師がURL1を未設定です";
+    }
+    if (studentUrl2Btn) {
+      studentUrl2Btn.disabled = !has2;
+      studentUrl2Btn.title = has2 ? studentAssignedUrl2 : "講師がURL2を未設定です";
+    }
+  }
+
   function applyStudentUrlState(url1, url2) {
     if (role !== "student") return;
-    const activeId = document.activeElement?.id;
-    const next1 = normalizeUrlValue(url1 || "");
-    const next2 = normalizeUrlValue(url2 || "");
-    if (studentUrl1El && activeId !== "studentUrl1") {
-      studentUrl1El.value = next1;
-      localStorage.setItem("seminar_url1", next1);
-    }
-    if (studentUrl2El && activeId !== "studentUrl2") {
-      studentUrl2El.value = next2;
-      localStorage.setItem("seminar_url2", next2);
-    }
+    studentAssignedUrl1 = normalizeUrlValue(url1 || "");
+    studentAssignedUrl2 = normalizeUrlValue(url2 || "");
+    applyStudentUrlButtons();
   }
 
   function applyTeacherMessageUI(msg) {
@@ -1013,33 +1001,8 @@ ${code}
     ws.send(JSON.stringify({ type: "program_update", programName: getProgramNameSafe() }));
   });
 
-  function scheduleStudentUrlSend() {
-    if (studentUrlSendTimer) clearTimeout(studentUrlSendTimer);
-    studentUrlSendTimer = setTimeout(() => {
-      if (role !== "student") return;
-      if (!ws || ws.readyState !== WebSocket.OPEN) return;
-      const url1 = normalizeUrlValue(studentUrl1El?.value || "");
-      const url2 = normalizeUrlValue(studentUrl2El?.value || "");
-      ws.send(JSON.stringify({ type: "url_update", url1, url2 }));
-    }, 350);
-  }
-
-  studentUrl1El?.addEventListener("input", () => {
-    const next = normalizeUrlValue(studentUrl1El.value);
-    if (next !== studentUrl1El.value) studentUrl1El.value = next;
-    localStorage.setItem("seminar_url1", studentUrl1El.value);
-    scheduleStudentUrlSend();
-  });
-
-  studentUrl2El?.addEventListener("input", () => {
-    const next = normalizeUrlValue(studentUrl2El.value);
-    if (next !== studentUrl2El.value) studentUrl2El.value = next;
-    localStorage.setItem("seminar_url2", studentUrl2El.value);
-    scheduleStudentUrlSend();
-  });
-
-  studentUrl1OpenBtn?.addEventListener("click", () => openUrlInNewTab(studentUrl1El?.value || ""));
-  studentUrl2OpenBtn?.addEventListener("click", () => openUrlInNewTab(studentUrl2El?.value || ""));
+  studentUrl1Btn?.addEventListener("click", () => openUrlInNewTab(studentAssignedUrl1));
+  studentUrl2Btn?.addEventListener("click", () => openUrlInNewTab(studentAssignedUrl2));
 
   studentDoneBtn?.addEventListener("click", () => {
     if (role !== "student") return;
@@ -1622,7 +1585,7 @@ ${safeCode}
       url1.dataset.urlSlot = "url1";
       url1.value = String(s.url1 || "");
       const url1Open = document.createElement("button");
-      url1Open.textContent = "別タブ";
+      url1Open.textContent = "開く";
       url1Open.addEventListener("click", (e) => {
         e.stopPropagation();
         openUrlInNewTab(url1.value);
@@ -1674,7 +1637,7 @@ ${safeCode}
       url2.dataset.urlSlot = "url2";
       url2.value = String(s.url2 || "");
       const url2Open = document.createElement("button");
-      url2Open.textContent = "別タブ";
+      url2Open.textContent = "開く";
       url2Open.addEventListener("click", (e) => {
         e.stopPropagation();
         openUrlInNewTab(url2.value);
@@ -1769,7 +1732,6 @@ ${safeCode}
       }));
       if (role === "student") {
         ws.send(JSON.stringify({ type: "code_update", code: codeEl.value || "" }));
-        ws.send(JSON.stringify({ type: "url_update", url1: normalizeUrlValue(studentUrl1El?.value || ""), url2: normalizeUrlValue(studentUrl2El?.value || "") }));
         setStudentSignal(""); // reset on connect
       }
     };
