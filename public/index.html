@@ -194,7 +194,7 @@
     .muted { color: var(--muted); font-size: 12px; }
     #logs { white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.35; max-height: 420px; overflow:auto; }
     #students { max-height: 320px; overflow:auto; }
-    .student { padding: 8px 10px; border-bottom: 1px solid var(--border); display:flex; align-items:center; gap:8px; overflow:hidden; }
+    .student { padding: 6px 8px; border-bottom: 1px solid var(--border); display:flex; align-items:center; gap:8px; overflow:hidden; }
     .student-head { flex: 0 0 240px; min-width: 240px; display:flex; justify-content:space-between; align-items:baseline; gap:10px; cursor: pointer; margin-bottom: 0; overflow:hidden; }
     .student-name { font-weight: 600; }
     .student-meta { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
@@ -203,6 +203,7 @@
     .student-fields { flex: 1 1 auto; min-width: 0; display:flex; gap:6px; align-items:center; flex-wrap:nowrap; overflow:hidden; }
     .url-edit { display:flex; gap:6px; align-items:center; min-width: 0; flex: 1 1 0; overflow:hidden; }
     .url-input { width: 100%; min-width: 120px; box-sizing:border-box; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; padding: 6px 8px; border:1px solid var(--border); border-radius:8px; background: var(--panel); color: var(--text); height: 30px; }
+    .url-edit button { white-space: nowrap; flex: 0 0 auto; padding: 6px 8px; }
     .tag { font-size: 11px; padding: 2px 6px; border: 1px solid var(--tag-off-border); border-radius: 999px; }
     .tag-off { background: var(--tag-off-bg); border-color: var(--tag-off-border); color: var(--tag-off-text); }
     .tag-done-on { background: var(--tag-done-bg); border-color: var(--tag-done-bg); color:#fff; }
@@ -227,11 +228,19 @@
     .res-edit-row input { padding:6px 8px; border:1px solid var(--border); border-radius:10px; }
     .maximize-bar { position: fixed; top: 12px; left: 12px; right: 12px; z-index: 1002; display: none; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 8px 10px; }
     .runner-wrap { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--panel); }
+    .teacher-work { display:grid; grid-template-columns: 1fr 360px; gap: 10px; align-items:start; margin-top:10px; }
+    .teacher-left { min-width: 0; }
+    .teacher-right { min-width: 0; }
+    #teacherLogs { max-height: 460px; overflow:auto; white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.35; }
     body.maximized { overflow: hidden; }
     body.student-maximized #studentMaxBar { display: flex; }
     body.student-maximized #studentRunnerWrap { position: fixed; inset: 60px 12px 12px 12px; z-index: 1001; border: 1px solid #ddd; border-radius: 12px; background: #fff; padding: 8px; }
     body.student-maximized #studentRunnerWrap iframe { height: 100%; }
-    @media (max-width: 980px) { main { grid-template-columns: 1fr; } .student-fields { flex-wrap: wrap; } }
+    @media (max-width: 980px) {
+      main { grid-template-columns: 1fr; }
+      .student-fields { flex-wrap: wrap; }
+      .teacher-work { grid-template-columns: 1fr; }
+    }
   </style>
 </head>
 <body class="theme-lite">
@@ -338,7 +347,17 @@ console.log('hello');"></textarea>
           <button class="soft" id="teacherHelpBtn" title="使い方（USERS_GUIDE）">？</button>
         </div>
 
-        <textarea id="teacherCode" readonly></textarea>
+        <div class="teacher-work">
+          <div class="teacher-left">
+            <textarea id="teacherCode" readonly></textarea>
+          </div>
+          <div class="card teacher-right">
+            <h3>Logs</h3>
+            <div class="content">
+              <div id="teacherLogs"></div>
+            </div>
+          </div>
+        </div>
 
         <div id="teacherWritebackPanel" style="display:none;margin-top:10px;border:1px solid #eee;border-radius:10px;padding:10px;">
           <div class="row" style="margin-bottom:8px;">
@@ -356,7 +375,7 @@ console.log('hello');"></textarea>
     </div>
   </section>
 
-  <aside class="card">
+  <aside class="card" id="globalLogsCard">
     <h3>Logs</h3>
     <div class="content">
       <div id="logs"></div>
@@ -461,6 +480,8 @@ console.log('hello');"></textarea>
   const resourcesCancelBtn = document.getElementById("resourcesCancelBtn");
   const runner = document.getElementById("runner");
   const logsEl = document.getElementById("logs");
+  const teacherLogsEl = document.getElementById("teacherLogs");
+  const globalLogsCard = document.getElementById("globalLogsCard");
 
   const studentsEl = document.getElementById("students");
   const teacherCodeEl = document.getElementById("teacherCode");
@@ -492,10 +513,12 @@ console.log('hello');"></textarea>
     document.getElementById("leftTitle").textContent = "講師ダッシュボード";
     if (studentSignalWrap) studentSignalWrap.style.display = "none";
     if (teacherControlsWrap) teacherControlsWrap.style.display = "flex";
+    if (globalLogsCard) globalLogsCard.style.display = "none";
   } else {
     document.body.classList.remove("teacher-mode");
     if (studentSignalWrap) studentSignalWrap.style.display = "flex";
     if (teacherControlsWrap) teacherControlsWrap.style.display = "none";
+    if (globalLogsCard) globalLogsCard.style.display = "block";
   }
 
   // Persistent clientId per device
@@ -576,20 +599,26 @@ console.log('hello');"></textarea>
 
   function setStatus(txt) { statusEl.textContent = txt; }
 
-  function appendLog(line) {
-    logsEl.textContent += line + "\n";
-    logsEl.scrollTop = logsEl.scrollHeight;
+  function getActiveLogsEl() {
+    if (role === "teacher" && teacherLogsEl) return teacherLogsEl;
+    return logsEl;
   }
 
-  function clearLogsUI() { logsEl.textContent = ""; }
+  function appendLog(line) {
+    const el = getActiveLogsEl();
+    if (!el) return;
+    el.textContent += line + "\n";
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function clearLogsUI() {
+    if (logsEl) logsEl.textContent = "";
+    if (teacherLogsEl) teacherLogsEl.textContent = "";
+  }
 
   function openUrlInNewTab(raw) {
-    const url = String(raw || "").trim();
+    const url = toOpenableUrl(raw);
     if (!url) return;
-    if (!/^https?:\/\//i.test(url)) {
-      alert("URLは http:// または https:// から始めてください。");
-      return;
-    }
     window.open(url, "_blank", "noopener");
   }
 
@@ -613,6 +642,16 @@ console.log('hello');"></textarea>
     let out = String(raw || "").trim();
     if (out.length > 2000) out = out.slice(0, 2000);
     return out;
+  }
+
+  function toOpenableUrl(raw) {
+    let url = normalizeUrlValue(raw);
+    if (!url) return "";
+    url = url.replace(/\s+/g, "");
+    if (/^https?:\/\//i.test(url)) return url;
+    if (/^[\w.-]+\.[A-Za-z]{2,}(?:[\/?#]|$)/.test(url)) return `https://${url}`;
+    alert("URL形式が不正です。http:// または https://（省略時は https:// を自動補完）");
+    return "";
   }
 
   function sanitizeForFilename(name) {
