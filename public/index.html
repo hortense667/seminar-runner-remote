@@ -193,16 +193,16 @@
     .muted { color: var(--muted); font-size: 12px; }
     #logs { white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.35; max-height: 420px; overflow:auto; }
     #students { max-height: 320px; overflow:auto; }
-    .student { padding: 8px 10px; border-bottom: 1px solid var(--border); display:flex; align-items:flex-start; gap:10px; }
-    .student-head { flex: 0 0 auto; min-width: 200px; display:flex; justify-content:space-between; align-items:baseline; gap:10px; cursor: pointer; }
+    .student { padding: 8px 10px; border-bottom: 1px solid var(--border); display:block; }
+    .student-head { width: 100%; min-width: 0; display:flex; justify-content:space-between; align-items:baseline; gap:10px; cursor: pointer; margin-bottom: 8px; }
     .student-name { font-weight: 600; }
     .student-meta { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
     .student-id { font-size: 11px; color: var(--muted); }
-    .memo-input { flex: 1 1 auto; min-width: 160px; box-sizing:border-box; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.35; padding: 7px 10px; border:1px solid var(--border); border-radius:10px; background: var(--panel); color: var(--text); height: 34px; }
-    .student-fields { flex: 1 1 auto; display:flex; gap:8px; align-items:center; flex-wrap: wrap; }
-    .url-edit { display:flex; gap:6px; align-items:center; flex: 1 1 420px; min-width: 320px; }
-    .url-input { flex: 1 1 auto; min-width: 200px; box-sizing:border-box; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.35; padding: 7px 10px; border:1px solid var(--border); border-radius:10px; background: var(--panel); color: var(--text); height: 54px; resize: vertical; }
-    .header-url-wrap { flex: 1 1 100%; }
+    .memo-input { width: 100%; min-width: 0; box-sizing:border-box; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.35; padding: 7px 10px; border:1px solid var(--border); border-radius:10px; background: var(--panel); color: var(--text); height: 34px; }
+    .student-fields { width: 100%; display:grid; grid-template-columns: 1fr; gap:8px; }
+    .url-edit { display:grid; grid-template-columns: auto 1fr auto; gap:6px; align-items:center; min-width: 0; }
+    .url-input { width: 100%; min-width: 0; box-sizing:border-box; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.35; padding: 7px 10px; border:1px solid var(--border); border-radius:10px; background: var(--panel); color: var(--text); height: 54px; resize: vertical; }
+    .header-url-wrap { width: 100%; margin-top: 6px; gap: 6px; align-items: center; flex-wrap: wrap; }
     .tag { font-size: 11px; padding: 2px 6px; border: 1px solid var(--tag-off-border); border-radius: 999px; }
     .tag-off { background: var(--tag-off-bg); border-color: var(--tag-off-border); color: var(--tag-off-text); }
     .tag-done-on { background: var(--tag-done-bg); border-color: var(--tag-done-bg); color:#fff; }
@@ -500,6 +500,7 @@ console.log('hello');"></textarea>
     teacherPane.style.display = "block";
     document.getElementById("leftTitle").textContent = "講師ダッシュボード";
     if (studentSignalWrap) studentSignalWrap.style.display = "none";
+    if (studentUrlWrap) studentUrlWrap.style.display = "none";
     if (teacherControlsWrap) teacherControlsWrap.style.display = "flex";
   } else {
     if (studentSignalWrap) studentSignalWrap.style.display = "flex";
