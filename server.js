@@ -4,13 +4,15 @@ import { WebSocketServer } from "ws";
 import path from "path";
 import { fileURLToPath } from "url";
 import QRCode from "qrcode";
-import { readFile } from "fs/promises";
+import { readFile, writeFile, mkdir } from "fs/promises";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
 app.use(express.static(path.join(__dirname, "public")));
+
+const STATE_FILE = process.env.STATE_FILE || path.join(__dirname, "data", "state.json");
 
 /**
  * QR生成API
@@ -55,10 +57,70 @@ const wss = new WebSocketServer({ server });
  *   studentSockets: Map(clientId -> Set(ws)),
  *   resources: Array<{ title: string, url: string }>,
  *   teacherMessage: string,
- *   nameLock: boolean
+ *   nameLock: boolean,
+ *   seatPlan: { count: number, seats: Array<{ clientId: string|null, memo: string, url1: string, url2: string }> }
  * })
  */
 const rooms = new Map();
+
+function normalizeSeatCount(input) {
+  const n = Math.floor(Number(input));
+  if (!Number.isFinite(n) || n < 1) return 1;
+  if (n > 200) return 200;
+  return n;
+}
+
+function ensureSeatPlan(room, nextCount = null) {
+  if (!room.seatPlan) room.seatPlan = { count: 20, seats: [] };
+  if (!Array.isArray(room.seatPlan.seats)) room.seatPlan.seats = [];
+  const count = normalizeSeatCount(nextCount == null ? room.seatPlan.count : nextCount);
+  room.seatPlan.count = count;
+  while (room.seatPlan.seats.length < count) {
+    room.seatPlan.seats.push({ clientId: null, memo: "", url1: "", url2: "" });
+  }
+  room.seatPlan.seats.length = count;
+  for (let i = 0; i < room.seatPlan.seats.length; i++) {
+    const s = room.seatPlan.seats[i] || {};
+    room.seatPlan.seats[i] = {
+      clientId: s.clientId ? String(s.clientId) : null,
+      memo: String(s.memo || "").slice(0, 1000),
+      url1: String(s.url1 || "").trim().slice(0, 2000),
+      url2: String(s.url2 || "").trim().slice(0, 2000)
+    };
+  }
+}
+
+function buildSeatPlanState(room) {
+  ensureSeatPlan(room);
+  return {
+    type: "seat_plan_state",
+    count: room.seatPlan.count,
+    seats: room.seatPlan.seats.map(s => ({
+      clientId: s.clientId || null,
+      memo: s.memo || "",
+      url1: s.url1 || "",
+      url2: s.url2 || ""
+    }))
+  };
+}
+
+function findSeatIndexByClientId(room, clientId) {
+  ensureSeatPlan(room);
+  return room.seatPlan.seats.findIndex(s => s.clientId === clientId);
+}
+
+function assignSeatForClient(room, clientId) {
+  ensureSeatPlan(room);
+  let idx = findSeatIndexByClientId(room, clientId);
+  if (idx >= 0) return idx;
+  idx = room.seatPlan.seats.findIndex(s => !s.clientId);
+  if (idx < 0) {
+    ensureSeatPlan(room, room.seatPlan.count + 1);
+    idx = room.seatPlan.seats.length - 1;
+  }
+  room.seatPlan.seats[idx].clientId = clientId;
+  return idx;
+}
 
 // Remove inactive students automatically (ms)
 const STUDENT_TTL_MS = Number(process.env.STUDENT_TTL_MS || 1000 * 60 * 60 * 6); // default 6 hours
@@ -66,9 +128,11 @@ const CLEANUP_INTERVAL_MS = Number(process.env.CLEANUP_INTERVAL_MS || 1000 * 60)
 
 function getRoom(roomId) {
   if (!rooms.has(roomId)) {
-    rooms.set(roomId, { students: new Map(), teachers: new Set(), sockets: new Set(), studentSockets: new Map(), resources: [], teacherMessage: "", nameLock: false });
+    rooms.set(roomId, { students: new Map(), teachers: new Set(), sockets: new Set(), studentSockets: new Map(), resources: [], teacherMessage: "", nameLock: false, seatPlan: { count: 20, seats: [] } });
   }
-  return rooms.get(roomId);
+  const room = rooms.get(roomId);
+  ensureSeatPlan(room);
+  return room;
 }
 
 function normalizeTeacherMessage(input) {
@@ -157,6 +221,12 @@ function broadcastToRoom(roomId, msgObj) {
   }
 }
 
+function broadcastSeatPlanToTeachers(roomId) {
+  const room = rooms.get(roomId);
+  if (!room) return;
+  broadcastToTeachers(roomId, buildSeatPlanState(room));
+}
+
 function sendToStudent(roomId, clientId, msgObj) {
   const room = rooms.get(roomId);
   if (!room) return;
@@ -172,6 +242,117 @@ function broadcastSnapshotToTeachers(roomId) {
   const room = rooms.get(roomId);
   if (!room) return;
   broadcastToTeachers(roomId, { type: "snapshot", room: roomId, students: buildStudentsSnapshot(room) });
+}
+
+let persistTimer = null;
+let persistInFlight = false;
+let persistRequestedAgain = false;
+
+function serializeRooms() {
+  const out = {};
+  for (const [roomId, room] of rooms.entries()) {
+    ensureSeatPlan(room);
+    out[roomId] = {
+      students: [...room.students.entries()].map(([clientId, s]) => ({
+        clientId,
+        name: s.name || "",
+        programName: s.programName || "",
+        code: s.code || "",
+        logs: s.logs || [],
+        memo: s.memo || "",
+        url1: s.url1 || "",
+        url2: s.url2 || "",
+        signal: s.signal || "",
+        lastSeen: s.lastSeen || Date.now()
+      })),
+      resources: room.resources || [],
+      teacherMessage: room.teacherMessage || "",
+      nameLock: !!room.nameLock,
+      seatPlan: {
+        count: room.seatPlan.count,
+        seats: room.seatPlan.seats.map(s => ({
+          clientId: s.clientId || null,
+          memo: s.memo || "",
+          url1: s.url1 || "",
+          url2: s.url2 || ""
+        }))
+      }
+    };
+  }
+  return { version: 1, rooms: out };
+}
+
+function hydrateRooms(payload) {
+  const allRooms = payload?.rooms || {};
+  for (const [roomId, raw] of Object.entries(allRooms)) {
+    const room = getRoom(roomId);
+    room.students.clear();
+    for (const st of (raw.students || [])) {
+      const cid = String(st?.clientId || "").trim();
+      if (!cid) continue;
+      room.students.set(cid, {
+        name: normalizeName(st?.name, "Student"),
+        programName: String(st?.programName || ""),
+        code: String(st?.code || ""),
+        logs: Array.isArray(st?.logs) ? st.logs.map(x => String(x || "")).slice(-400) : [],
+        memo: String(st?.memo || "").slice(0, 1000),
+        url1: String(st?.url1 || "").trim().slice(0, 2000),
+        url2: String(st?.url2 || "").trim().slice(0, 2000),
+        signal: (st?.signal === "done" || st?.signal === "question") ? st.signal : "",
+        lastSeen: Number(st?.lastSeen || Date.now())
+      });
+    }
+    room.resources = normalizeResources(raw.resources);
+    room.teacherMessage = normalizeTeacherMessage(raw.teacherMessage);
+    room.nameLock = !!raw.nameLock;
+    room.seatPlan = {
+      count: normalizeSeatCount(raw?.seatPlan?.count || 20),
+      seats: Array.isArray(raw?.seatPlan?.seats) ? raw.seatPlan.seats : []
+    };
+    ensureSeatPlan(room);
+  }
+}
+
+async function persistStateNow() {
+  if (persistInFlight) {
+    persistRequestedAgain = true;
+    return;
+  }
+  persistInFlight = true;
+  try {
+    await mkdir(path.dirname(STATE_FILE), { recursive: true });
+    const json = JSON.stringify(serializeRooms());
+    await writeFile(STATE_FILE, json, "utf-8");
+  } catch (e) {
+    console.error("[persist] failed:", String(e?.message || e));
+  } finally {
+    persistInFlight = false;
+    if (persistRequestedAgain) {
+      persistRequestedAgain = false;
+      await persistStateNow();
+    }
+  }
+}
+
+function schedulePersistState() {
+  if (persistTimer) clearTimeout(persistTimer);
+  persistTimer = setTimeout(() => {
+    persistTimer = null;
+    persistStateNow();
+  }, 250);
+}
+
+async function loadPersistedState() {
+  try {
+    const text = await readFile(STATE_FILE, "utf-8");
+    const data = JSON.parse(text);
+    hydrateRooms(data);
+    console.log(`[persist] loaded: ${STATE_FILE}`);
+  } catch (e) {
+    if (String(e?.code || "") !== "ENOENT") {
+      console.error("[persist] load failed:", String(e?.message || e));
+    }
+  }
 }
 
 // Periodic cleanup for inactive students
@@ -223,12 +404,15 @@ wss.on("connection", (ws) => {
         ws.send(JSON.stringify({ type: "room_state", room: roomId, nameLock: !!room.nameLock }));
         ws.send(JSON.stringify({ type: "resources_state", room: roomId, resources: room.resources || [] }));
         ws.send(JSON.stringify({ type: "teacher_message_state", room: roomId, message: room.teacherMessage || "" }));
+        ws.send(JSON.stringify(buildSeatPlanState(room)));
       } else {
         if (!clientId) return;
         room.sockets.add(ws);
         if (!room.studentSockets.has(clientId)) room.studentSockets.set(clientId, new Set());
         room.studentSockets.get(clientId).add(ws);
         const prev = room.students.get(clientId);
+        const seatIndex = assignSeatForClient(room, clientId);
+        const seat = room.seatPlan.seats[seatIndex] || { memo: "", url1: "", url2: "" };
         const assigned = ensureUniqueName(room, name, clientId);
         if (assigned !== name) {
           try { ws.send(JSON.stringify({ type: "name_assigned", name: assigned })); } catch {}
@@ -238,25 +422,35 @@ wss.on("connection", (ws) => {
           programName: prev?.programName || "",
           code: prev?.code || "",
           logs: prev?.logs || [],
-          memo: prev?.memo || "",
-          url1: prev?.url1 || "",
-          url2: prev?.url2 || "",
+          memo: prev?.memo || seat.memo || "",
+          url1: prev?.url1 || seat.url1 || "",
+          url2: prev?.url2 || seat.url2 || "",
           signal: prev?.signal || "",
           lastSeen: Date.now()
         });
+        const merged = room.students.get(clientId);
+        room.seatPlan.seats[seatIndex] = {
+          clientId,
+          memo: merged.memo || seat.memo || "",
+          url1: merged.url1 || seat.url1 || "",
+          url2: merged.url2 || seat.url2 || ""
+        };
         broadcastToTeachers(roomId, {
           type: "student_joined",
           clientId,
           name: assigned,
-          url1: prev?.url1 || "",
-          url2: prev?.url2 || "",
+          url1: merged.url1 || "",
+          url2: merged.url2 || "",
+          seatIndex,
           lastSeen: Date.now()
         });
+        broadcastSeatPlanToTeachers(roomId);
         ws.send(JSON.stringify({ type: "room_state", room: roomId, nameLock: !!room.nameLock }));
         ws.send(JSON.stringify({ type: "resources_state", room: roomId, resources: room.resources || [] }));
         ws.send(JSON.stringify({ type: "teacher_message_state", room: roomId, message: room.teacherMessage || "" }));
-        ws.send(JSON.stringify({ type: "url_update", url1: prev?.url1 || "", url2: prev?.url2 || "" }));
+        ws.send(JSON.stringify({ type: "url_update", url1: merged.url1 || "", url2: merged.url2 || "" }));
       }
+      schedulePersistState();
       return;
     }
 
@@ -269,24 +463,69 @@ wss.on("connection", (ws) => {
       room.nameLock = false;
       broadcastToRoom(ws.roomId, { type: "room_state", room: ws.roomId, nameLock: !!room.nameLock });
       broadcastSnapshotToTeachers(ws.roomId);
+      schedulePersistState();
       return;
     }
 
     if (msg.type === "set_name_lock" && ws.role === "teacher") {
       room.nameLock = !!msg.locked;
       broadcastToRoom(ws.roomId, { type: "room_state", room: ws.roomId, nameLock: !!room.nameLock });
+      schedulePersistState();
       return;
     }
 
     if (msg.type === "resources_update" && ws.role === "teacher") {
       room.resources = normalizeResources(msg.resources);
       broadcastToRoom(ws.roomId, { type: "resources_state", room: ws.roomId, resources: room.resources || [] });
+      schedulePersistState();
       return;
     }
 
     if (msg.type === "teacher_message_update" && ws.role === "teacher") {
       room.teacherMessage = normalizeTeacherMessage(msg.message);
       broadcastToRoom(ws.roomId, { type: "teacher_message_state", room: ws.roomId, message: room.teacherMessage || "" });
+      schedulePersistState();
+      return;
+    }
+
+    if (msg.type === "seat_plan_update" && ws.role === "teacher") {
+      if (msg.count !== undefined) ensureSeatPlan(room, msg.count);
+      const idx = Number(msg.seatIndex);
+      if (Number.isInteger(idx) && idx >= 0) {
+        ensureSeatPlan(room);
+        if (idx >= room.seatPlan.count) ensureSeatPlan(room, idx + 1);
+        const seat = room.seatPlan.seats[idx] || { clientId: null, memo: "", url1: "", url2: "" };
+        if (msg.memo !== undefined) seat.memo = String(msg.memo || "").slice(0, 1000);
+        if (msg.url1 !== undefined) seat.url1 = String(msg.url1 || "").trim().slice(0, 2000);
+        if (msg.url2 !== undefined) seat.url2 = String(msg.url2 || "").trim().slice(0, 2000);
+        room.seatPlan.seats[idx] = seat;
+
+        if (seat.clientId) {
+          const s = room.students.get(seat.clientId);
+          if (s) {
+            if (msg.memo !== undefined) s.memo = seat.memo || "";
+            if (msg.url1 !== undefined) s.url1 = seat.url1 || "";
+            if (msg.url2 !== undefined) s.url2 = seat.url2 || "";
+            s.lastSeen = Date.now();
+            room.students.set(seat.clientId, s);
+            if (msg.memo !== undefined) {
+              broadcastToTeachers(ws.roomId, { type: "memo_update", clientId: seat.clientId, memo: s.memo || "" });
+            }
+            if (msg.url1 !== undefined || msg.url2 !== undefined) {
+              broadcastToTeachers(ws.roomId, {
+                type: "url_update",
+                clientId: seat.clientId,
+                url1: s.url1 || "",
+                url2: s.url2 || "",
+                lastSeen: s.lastSeen
+              });
+              sendToStudent(ws.roomId, seat.clientId, { type: "url_update", url1: s.url1 || "", url2: s.url2 || "" });
+            }
+          }
+        }
+      }
+      broadcastSeatPlanToTeachers(ws.roomId);
+      schedulePersistState();
       return;
     }
 
@@ -300,8 +539,11 @@ wss.on("connection", (ws) => {
       if (memo.length > 1000) memo = memo.slice(0, 1000);
       s.memo = memo;
       room.students.set(clientId, s);
+      const seatIdx = findSeatIndexByClientId(room, clientId);
+      if (seatIdx >= 0) room.seatPlan.seats[seatIdx].memo = memo;
 
       broadcastToTeachers(ws.roomId, { type: "memo_update", clientId, memo });
+      schedulePersistState();
       return;
     }
 
@@ -335,6 +577,7 @@ wss.on("connection", (ws) => {
       // push to student's UI (no auto-run)
       sendToStudent(ws.roomId, clientId, { type: "force_code", code: s.code });
       try { ws.send(JSON.stringify({ type: "force_code_result", ok: true, clientId, lastSeen: s.lastSeen })); } catch {}
+      schedulePersistState();
       return;
     }
 
@@ -351,6 +594,11 @@ wss.on("connection", (ws) => {
         s.url2 = url2;
         s.lastSeen = Date.now();
         room.students.set(clientId, s);
+        const seatIdx = findSeatIndexByClientId(room, clientId);
+        if (seatIdx >= 0) {
+          room.seatPlan.seats[seatIdx].url1 = s.url1 || "";
+          room.seatPlan.seats[seatIdx].url2 = s.url2 || "";
+        }
         broadcastToTeachers(ws.roomId, {
           type: "url_update",
           clientId,
@@ -359,6 +607,7 @@ wss.on("connection", (ws) => {
           lastSeen: s.lastSeen
         });
         sendToStudent(ws.roomId, clientId, { type: "url_update", url1: s.url1 || "", url2: s.url2 || "" });
+        schedulePersistState();
         return;
       }
 
@@ -370,6 +619,9 @@ wss.on("connection", (ws) => {
         s.url2 = url2;
         s.lastSeen = Date.now();
         room.students.set(clientId, s);
+        const seatIdx = assignSeatForClient(room, clientId);
+        room.seatPlan.seats[seatIdx].url1 = s.url1 || "";
+        room.seatPlan.seats[seatIdx].url2 = s.url2 || "";
         broadcastToTeachers(ws.roomId, {
           type: "url_update",
           clientId,
@@ -377,6 +629,8 @@ wss.on("connection", (ws) => {
           url2: s.url2 || "",
           lastSeen: s.lastSeen
         });
+        broadcastSeatPlanToTeachers(ws.roomId);
+        schedulePersistState();
         return;
       }
     }
@@ -397,6 +651,7 @@ wss.on("connection", (ws) => {
         signal: s.signal,
         lastSeen: s.lastSeen
       });
+      schedulePersistState();
       return;
     }
 
@@ -422,6 +677,7 @@ wss.on("connection", (ws) => {
         name: s.name,
         lastSeen: s.lastSeen
       });
+      schedulePersistState();
       return;
     }
 
@@ -438,6 +694,7 @@ wss.on("connection", (ws) => {
         programName: s.programName,
         lastSeen: s.lastSeen
       });
+      schedulePersistState();
       return;
     }
 
@@ -460,6 +717,7 @@ wss.on("connection", (ws) => {
         programName: s.programName || "",
         lastSeen: s.lastSeen
       });
+      schedulePersistState();
       return;
     }
 
@@ -480,6 +738,7 @@ wss.on("connection", (ws) => {
         line,
         lastSeen: s.lastSeen
       });
+      schedulePersistState();
       return;
     }
 
@@ -492,6 +751,7 @@ wss.on("connection", (ws) => {
         s.lastSeen = Date.now();
         broadcastToTeachers(ws.roomId, { type: "clear_logs", clientId, lastSeen: s.lastSeen });
       }
+      schedulePersistState();
       return;
     }
   });
@@ -525,6 +785,8 @@ wss.on("connection", (ws) => {
 });
 
 const PORT = process.env.PORT || 8787;
+await loadPersistedState();
+
 server.listen(PORT, () => {
   console.log(`Seminar runner listening on http://localhost:${PORT}`);
   console.log(`Teacher view: http://localhost:${PORT}/?role=teacher&room=demo`);
