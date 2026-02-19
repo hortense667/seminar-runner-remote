@@ -161,6 +161,7 @@
     }
     header { padding: 12px 16px; border-bottom: 1px solid var(--border); display:flex; gap:12px; align-items:center; flex-wrap: wrap; background: var(--header-bg); }
     main { display: grid; grid-template-columns: 1fr 420px; gap: 12px; padding: 12px; }
+    body.teacher-mode main { grid-template-columns: 1fr; }
     textarea {
       width: 100%;
       min-height: 320px;
@@ -198,11 +199,13 @@
     .student-name { font-weight: 600; }
     .student-meta { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
     .student-id { font-size: 11px; color: var(--muted); }
-    .memo-input { width: 100%; min-width: 0; box-sizing:border-box; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.35; padding: 7px 10px; border:1px solid var(--border); border-radius:10px; background: var(--panel); color: var(--text); height: 34px; }
-    .student-fields { width: 100%; display:grid; grid-template-columns: 1fr; gap:8px; }
-    .url-edit { display:grid; grid-template-columns: auto 1fr auto; gap:6px; align-items:center; min-width: 0; }
-    .url-input { width: 100%; min-width: 0; box-sizing:border-box; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.35; padding: 7px 10px; border:1px solid var(--border); border-radius:10px; background: var(--panel); color: var(--text); height: 54px; resize: vertical; }
-    .header-url-wrap { width: 100%; margin-top: 6px; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .memo-input { width: 150px; min-width: 120px; box-sizing:border-box; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; padding: 6px 8px; border:1px solid var(--border); border-radius:8px; background: var(--panel); color: var(--text); height: 30px; }
+    .student-fields { width: 100%; display:flex; gap:6px; align-items:center; flex-wrap:nowrap; overflow:hidden; }
+    .url-edit { display:flex; gap:6px; align-items:center; min-width: 0; flex: 1 1 0; }
+    .url-input { width: 100%; min-width: 120px; box-sizing:border-box; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; padding: 6px 8px; border:1px solid var(--border); border-radius:8px; background: var(--panel); color: var(--text); height: 30px; }
+    .student-url-bar { display:none; padding: 8px 12px; border-bottom: 1px solid var(--border); background: var(--panel-alt); }
+    .student-url-row { display:flex; gap:6px; align-items:center; flex-wrap:nowrap; overflow:hidden; }
+    .student-url-row .url-input { min-width: 160px; flex: 1 1 0; }
     .tag { font-size: 11px; padding: 2px 6px; border: 1px solid var(--tag-off-border); border-radius: 999px; }
     .tag-off { background: var(--tag-off-bg); border-color: var(--tag-off-border); color: var(--tag-off-text); }
     .tag-done-on { background: var(--tag-done-bg); border-color: var(--tag-done-bg); color:#fff; }
@@ -231,7 +234,7 @@
     body.student-maximized #studentMaxBar { display: flex; }
     body.student-maximized #studentRunnerWrap { position: fixed; inset: 60px 12px 12px 12px; z-index: 1001; border: 1px solid #ddd; border-radius: 12px; background: #fff; padding: 8px; }
     body.student-maximized #studentRunnerWrap iframe { height: 100%; }
-    @media (max-width: 980px) { main { grid-template-columns: 1fr; } }
+    @media (max-width: 980px) { main { grid-template-columns: 1fr; } .student-fields, .student-url-row { flex-wrap: wrap; } }
   </style>
 </head>
 <body class="theme-lite">
@@ -263,14 +266,6 @@
     <button class="soft" id="studentQuestionBtn" title="講師に「質問あり」を通知">質問あり</button>
     <button class="soft" id="studentResourcesBtn" title="関係資料">関係資料</button>
   </span>
-  <span class="row header-url-wrap" id="studentUrlWrap" style="display:none;">
-    <span class="muted">URL1:</span>
-    <textarea id="studentUrl1" class="url-input" rows="2" placeholder="https://..."></textarea>
-    <button id="studentUrl1OpenBtn">別タブで開く</button>
-    <span class="muted">URL2:</span>
-    <textarea id="studentUrl2" class="url-input" rows="2" placeholder="https://..."></textarea>
-    <button id="studentUrl2OpenBtn">別タブで開く</button>
-  </span>
   <span class="row" id="teacherControlsWrap" style="margin-left:auto;display:none;">
     <input class="teacher-msg-input" id="teacherMsgInput" placeholder="受講者へメッセージ（例: 5分休憩 / 〇〇に進んでください）" />
     <button class="soft" id="teacherMsgSendBtn">送信</button>
@@ -286,6 +281,16 @@
     <button class="soft" id="teacherResourcesBtn" title="関係資料">関係資料</button>
   </span>
 </header>
+<div id="studentUrlWrap" class="student-url-bar">
+  <div class="student-url-row">
+    <span class="muted">URL1:</span>
+    <input id="studentUrl1" class="url-input" placeholder="https://..." />
+    <button id="studentUrl1OpenBtn">別タブで開く</button>
+    <span class="muted">URL2:</span>
+    <input id="studentUrl2" class="url-input" placeholder="https://..." />
+    <button id="studentUrl2OpenBtn">別タブで開く</button>
+  </div>
+</div>
 
 <main>
   <section class="card" id="leftCard">
@@ -496,6 +501,7 @@ console.log('hello');"></textarea>
   const teacherProgramName = document.getElementById("teacherProgramName");
 
   if (role === "teacher") {
+    document.body.classList.add("teacher-mode");
     studentPane.style.display = "none";
     teacherPane.style.display = "block";
     document.getElementById("leftTitle").textContent = "講師ダッシュボード";
@@ -503,9 +509,10 @@ console.log('hello');"></textarea>
     if (studentUrlWrap) studentUrlWrap.style.display = "none";
     if (teacherControlsWrap) teacherControlsWrap.style.display = "flex";
   } else {
+    document.body.classList.remove("teacher-mode");
     if (studentSignalWrap) studentSignalWrap.style.display = "flex";
     if (teacherControlsWrap) teacherControlsWrap.style.display = "none";
-    if (studentUrlWrap) studentUrlWrap.style.display = "flex";
+    if (studentUrlWrap) studentUrlWrap.style.display = "block";
   }
 
   // Persistent clientId per device
@@ -1479,7 +1486,7 @@ ${safeCode}
     const listScrollTop = studentsEl.scrollTop;
     const active = document.activeElement;
     const hadMemoFocus = active && active.tagName === "INPUT" && active.dataset && active.dataset.memoFor;
-    const hadUrlFocus = active && active.tagName === "TEXTAREA" && active.dataset && active.dataset.urlFor && active.dataset.urlSlot;
+    const hadUrlFocus = active && active.tagName === "INPUT" && active.dataset && active.dataset.urlFor && active.dataset.urlSlot;
     if (hadMemoFocus) {
       memoFocusState = {
         clientId: active.dataset.memoFor,
@@ -1496,8 +1503,7 @@ ${safeCode}
         slot: active.dataset.urlSlot,
         selectionStart: active.selectionStart,
         selectionEnd: active.selectionEnd,
-        scrollLeft: active.scrollLeft,
-        scrollTop: active.scrollTop
+        scrollLeft: active.scrollLeft
       };
     } else {
       urlFocusState = null;
@@ -1608,9 +1614,9 @@ ${safeCode}
       const url1Label = document.createElement("span");
       url1Label.className = "muted";
       url1Label.textContent = "URL1";
-      const url1 = document.createElement("textarea");
+      const url1 = document.createElement("input");
+      url1.type = "text";
       url1.className = "url-input";
-      url1.rows = 2;
       url1.placeholder = "https://...";
       url1.dataset.urlFor = s.id;
       url1.dataset.urlSlot = "url1";
@@ -1630,8 +1636,7 @@ ${safeCode}
           slot: "url1",
           selectionStart: url1.selectionStart,
           selectionEnd: url1.selectionEnd,
-          scrollLeft: url1.scrollLeft,
-          scrollTop: url1.scrollTop
+          scrollLeft: url1.scrollLeft
         };
       });
       url1.addEventListener("blur", () => {
@@ -1661,9 +1666,9 @@ ${safeCode}
       const url2Label = document.createElement("span");
       url2Label.className = "muted";
       url2Label.textContent = "URL2";
-      const url2 = document.createElement("textarea");
+      const url2 = document.createElement("input");
+      url2.type = "text";
       url2.className = "url-input";
-      url2.rows = 2;
       url2.placeholder = "https://...";
       url2.dataset.urlFor = s.id;
       url2.dataset.urlSlot = "url2";
@@ -1683,8 +1688,7 @@ ${safeCode}
           slot: "url2",
           selectionStart: url2.selectionStart,
           selectionEnd: url2.selectionEnd,
-          scrollLeft: url2.scrollLeft,
-          scrollTop: url2.scrollTop
+          scrollLeft: url2.scrollLeft
         };
       });
       url2.addEventListener("blur", () => {
@@ -1727,12 +1731,11 @@ ${safeCode}
       }
     }
     if (urlFocusState && urlFocusState.clientId && urlFocusState.slot) {
-      const el = studentsEl.querySelector(`textarea[data-url-for="${urlFocusState.clientId}"][data-url-slot="${urlFocusState.slot}"]`);
+      const el = studentsEl.querySelector(`input[data-url-for="${urlFocusState.clientId}"][data-url-slot="${urlFocusState.slot}"]`);
       if (el) {
         el.focus();
         try { el.setSelectionRange(urlFocusState.selectionStart, urlFocusState.selectionEnd); } catch {}
         el.scrollLeft = urlFocusState.scrollLeft || 0;
-        el.scrollTop = urlFocusState.scrollTop || 0;
       }
     }
     } finally {
