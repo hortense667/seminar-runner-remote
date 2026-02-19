@@ -49,7 +49,7 @@ const wss = new WebSocketServer({ server });
 
 /**
  * rooms = Map(roomId -> {
- *   students: Map(clientId -> { name, programName?: string, code, logs: string[], memo?: string, lastSeen }),
+ *   students: Map(clientId -> { name, programName?: string, code, logs: string[], memo?: string, url1?: string, url2?: string, lastSeen }),
  *   teachers: Set(ws),
  *   sockets: Set(ws),
  *   studentSockets: Map(clientId -> Set(ws)),
@@ -132,6 +132,8 @@ function buildStudentsSnapshot(room) {
     code: s.code || "",
     logs: s.logs || [],
     memo: s.memo || "",
+    url1: s.url1 || "",
+    url2: s.url2 || "",
     signal: s.signal || "",
     lastSeen: s.lastSeen || Date.now()
   }));
@@ -237,6 +239,8 @@ wss.on("connection", (ws) => {
           code: prev?.code || "",
           logs: prev?.logs || [],
           memo: prev?.memo || "",
+          url1: prev?.url1 || "",
+          url2: prev?.url2 || "",
           signal: prev?.signal || "",
           lastSeen: Date.now()
         });
@@ -244,6 +248,8 @@ wss.on("connection", (ws) => {
           type: "student_joined",
           clientId,
           name: assigned,
+          url1: prev?.url1 || "",
+          url2: prev?.url2 || "",
           lastSeen: Date.now()
         });
         ws.send(JSON.stringify({ type: "room_state", room: roomId, nameLock: !!room.nameLock }));
@@ -331,10 +337,53 @@ wss.on("connection", (ws) => {
       return;
     }
 
+    if (msg.type === "url_update") {
+      const url1 = String(msg.url1 || "").trim().slice(0, 2000);
+      const url2 = String(msg.url2 || "").trim().slice(0, 2000);
+
+      if (ws.role === "teacher") {
+        const clientId = String(msg.clientId || "").trim();
+        if (!clientId) return;
+        const s = room.students.get(clientId);
+        if (!s) return;
+        s.url1 = url1;
+        s.url2 = url2;
+        s.lastSeen = Date.now();
+        room.students.set(clientId, s);
+        broadcastToTeachers(ws.roomId, {
+          type: "url_update",
+          clientId,
+          url1: s.url1 || "",
+          url2: s.url2 || "",
+          lastSeen: s.lastSeen
+        });
+        sendToStudent(ws.roomId, clientId, { type: "url_update", url1: s.url1 || "", url2: s.url2 || "" });
+        return;
+      }
+
+      if (ws.role === "student") {
+        const clientId = ws.clientId;
+        if (!clientId) return;
+        const s = room.students.get(clientId) || { name: "Student", code: "", logs: [], memo: "", lastSeen: Date.now() };
+        s.url1 = url1;
+        s.url2 = url2;
+        s.lastSeen = Date.now();
+        room.students.set(clientId, s);
+        broadcastToTeachers(ws.roomId, {
+          type: "url_update",
+          clientId,
+          url1: s.url1 || "",
+          url2: s.url2 || "",
+          lastSeen: s.lastSeen
+        });
+        return;
+      }
+    }
+
     if (msg.type === "signal_update" && ws.role === "student") {
       const clientId = ws.clientId;
       if (!clientId) return;
-      const s = room.students.get(clientId) || { name: "Student", code: "", logs: [], memo: "", signal: "", lastSeen: Date.now() };
+      const s = room.students.get(clientId) || { name: "Student", code: "", logs: [], memo: "", url1: "", url2: "", signal: "", lastSeen: Date.now() };
       const next = String(msg.signal || "");
       const signal = (next === "done" || next === "question") ? next : "";
       s.signal = signal;
@@ -357,7 +406,7 @@ wss.on("connection", (ws) => {
         ws.send(JSON.stringify({ type: "name_update_rejected", reason: "locked" }));
         return;
       }
-      const s = room.students.get(clientId) || { name: "Student", code: "", logs: [], lastSeen: Date.now() };
+      const s = room.students.get(clientId) || { name: "Student", code: "", logs: [], url1: "", url2: "", lastSeen: Date.now() };
       const desired = normalizeName(msg.name, s.name || "Student");
       const assigned = ensureUniqueName(room, desired, clientId);
       if (assigned !== desired) {
@@ -378,7 +427,7 @@ wss.on("connection", (ws) => {
     if (msg.type === "program_update" && ws.role === "student") {
       const clientId = ws.clientId;
       if (!clientId) return;
-      const s = room.students.get(clientId) || { name: "Student", code: "", logs: [], lastSeen: Date.now() };
+      const s = room.students.get(clientId) || { name: "Student", code: "", logs: [], url1: "", url2: "", lastSeen: Date.now() };
       s.programName = String(msg.programName || "").trim();
       s.lastSeen = Date.now();
       room.students.set(clientId, s);
@@ -394,7 +443,7 @@ wss.on("connection", (ws) => {
     if (msg.type === "code_update" && ws.role === "student") {
       const clientId = ws.clientId;
       if (!clientId) return;
-      const s = room.students.get(clientId) || { name: "Student", code: "", logs: [], lastSeen: Date.now() };
+      const s = room.students.get(clientId) || { name: "Student", code: "", logs: [], url1: "", url2: "", lastSeen: Date.now() };
       s.code = String(msg.code || "");
       if (msg.programName !== undefined) {
         s.programName = String(msg.programName || "").trim();
@@ -416,7 +465,7 @@ wss.on("connection", (ws) => {
     if (msg.type === "log" && ws.role === "student") {
       const clientId = ws.clientId;
       if (!clientId) return;
-      const s = room.students.get(clientId) || { name: "Student", code: "", logs: [], lastSeen: Date.now() };
+      const s = room.students.get(clientId) || { name: "Student", code: "", logs: [], url1: "", url2: "", lastSeen: Date.now() };
       const line = String(msg.line || "");
       s.logs = (s.logs || []).slice(-400);
       s.logs.push(line);
