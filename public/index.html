@@ -181,6 +181,9 @@
     a { color: var(--link); }
     .card { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--panel); }
     .card h3 { margin: 0; padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 14px; background: var(--card-header-bg); }
+    .card-head-row { margin: 0; padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 14px; background: var(--card-header-bg); display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    .card-head-actions { display:flex; gap:6px; align-items:center; }
+    .card-head-actions button { padding: 6px 8px; font-size: 12px; }
     .card .content { padding: 10px 12px; }
     button { padding: 8px 10px; border-radius: 8px; border: 1px solid var(--button-border); background: var(--button-bg); color: var(--button-text); cursor: pointer; }
     button.primary { background: var(--button-primary-bg); color: var(--button-primary-text); border-color: var(--button-primary-border); }
@@ -329,9 +332,18 @@ console.log('hello');"></textarea>
         </div>
 
         <div class="card" style="border-radius:10px;">
-          <h3>受講者一覧</h3>
+          <div class="card-head-row">
+            <strong>受講者一覧</strong>
+            <div class="card-head-actions">
+              <button id="teacherUploadUrlListBtn">URLリスト登録</button>
+              <button id="teacherClearUrl1Btn">URL1クリア</button>
+              <button id="teacherClearUrl2Btn">URL2クリア</button>
+              <button id="teacherDownloadRosterBtn">受講者一覧ダウンロード</button>
+            </div>
+          </div>
           <div class="content" id="students"></div>
         </div>
+        <input id="teacherUploadUrlListFile" type="file" accept=".csv,text/csv" style="display:none;" />
 
         <div class="row" style="margin-top:10px;">
           <span class="muted teacher-info" id="teacherProgramName"></span>
@@ -501,6 +513,11 @@ console.log('hello');"></textarea>
   const teacherShowAllLogs = document.getElementById("teacherShowAllLogs");
   const teacherLockName = document.getElementById("teacherLockName");
   const teacherClearRoomBtn = document.getElementById("teacherClearRoomBtn");
+  const teacherUploadUrlListBtn = document.getElementById("teacherUploadUrlListBtn");
+  const teacherClearUrl1Btn = document.getElementById("teacherClearUrl1Btn");
+  const teacherClearUrl2Btn = document.getElementById("teacherClearUrl2Btn");
+  const teacherDownloadRosterBtn = document.getElementById("teacherDownloadRosterBtn");
+  const teacherUploadUrlListFile = document.getElementById("teacherUploadUrlListFile");
   const teacherResourcesBtn = document.getElementById("teacherResourcesBtn");
   const teacherSelInfo = document.getElementById("teacherSelInfo");
   const teacherSelId = document.getElementById("teacherSelId");
@@ -784,6 +801,51 @@ console.log('hello');"></textarea>
     if (/^[\w.-]+\.[A-Za-z]{2,}(?:[\/?#]|$)/.test(url)) return `https://${url}`;
     alert("URL形式が不正です。http:// または https://（省略時は https:// を自動補完）");
     return "";
+  }
+
+  function csvEscape(v) {
+    const s = String(v ?? "");
+    if (/[",\r\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+    return s;
+  }
+
+  function parseCsv(text) {
+    const rows = [];
+    let row = [];
+    let cell = "";
+    let inQuotes = false;
+    const src = String(text || "");
+    for (let i = 0; i < src.length; i++) {
+      const ch = src[i];
+      const next = src[i + 1];
+      if (inQuotes) {
+        if (ch === '"' && next === '"') { cell += '"'; i++; continue; }
+        if (ch === '"') { inQuotes = false; continue; }
+        cell += ch;
+        continue;
+      }
+      if (ch === '"') { inQuotes = true; continue; }
+      if (ch === ",") { row.push(cell); cell = ""; continue; }
+      if (ch === "\n") { row.push(cell); rows.push(row); row = []; cell = ""; continue; }
+      if (ch === "\r") continue;
+      cell += ch;
+    }
+    row.push(cell);
+    rows.push(row);
+    return rows.map(r => r.map(c => String(c || "").trim())).filter(r => r.some(c => c !== ""));
+  }
+
+  function downloadCsv(filename, header, rows) {
+    const lines = [header.map(csvEscape).join(",")];
+    for (const r of rows) lines.push(r.map(csvEscape).join(","));
+    const csv = "\uFEFF" + lines.join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   function sanitizeForFilename(name) {
@@ -1614,6 +1676,123 @@ ${safeCode}
     teacherSelInfo.textContent = "（リセット中）";
     clearLogsUI();
     ws.send(JSON.stringify({ type: "clear_room" }));
+  });
+
+  teacherUploadUrlListBtn?.addEventListener("click", () => {
+    if (role !== "teacher") return;
+    teacherUploadUrlListFile?.click();
+  });
+
+  function clearSeatUrlSlot(slot) {
+    if (role !== "teacher") return;
+    const target = slot === "url2" ? "url2" : "url1";
+    let changed = 0;
+    for (let i = 0; i < teacherSeatCount; i++) {
+      const draft = getSeatDraft(i);
+      const cid = seatAssignments[i] || null;
+      if (draft[target]) changed++;
+      draft[target] = "";
+      if (cid) {
+        const st = teacherState.get(cid) || { logs: [] };
+        st[target] = "";
+        teacherState.set(cid, st);
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: "url_update", clientId: cid, url1: st.url1 || "", url2: st.url2 || "" }));
+        }
+      }
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "seat_plan_update", seatIndex: i, [target]: "" }));
+      }
+    }
+    scheduleRenderStudents();
+    alert(`${target.toUpperCase()}をクリアしました（${changed} 行）。`);
+  }
+
+  teacherClearUrl1Btn?.addEventListener("click", () => clearSeatUrlSlot("url1"));
+  teacherClearUrl2Btn?.addEventListener("click", () => clearSeatUrlSlot("url2"));
+
+  teacherUploadUrlListFile?.addEventListener("change", () => {
+    if (role !== "teacher") return;
+    const file = teacherUploadUrlListFile?.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const text = String(reader.result || "");
+        let rows = parseCsv(text);
+        if (!rows.length) {
+          alert("CSVにデータがありません。");
+          return;
+        }
+        const h0 = String(rows[0]?.[0] || "").toLowerCase().replace(/\s+/g, "");
+        const h1 = String(rows[0]?.[1] || "").toLowerCase().replace(/\s+/g, "");
+        if (h0 === "url1" && h1 === "url2") rows = rows.slice(1);
+        if (rows.length !== teacherSeatCount) {
+          alert(`CSVの行数（${rows.length}）と人数（${teacherSeatCount}）が一致しません。人数を合わせてからアップロードしてください。`);
+          return;
+        }
+
+        let changed = 0;
+        for (let i = 0; i < teacherSeatCount; i++) {
+          const row = rows[i] || [];
+          const csvUrl1 = normalizeUrlValue(row[0] || "");
+          const csvUrl2 = normalizeUrlValue(row[1] || "");
+          const draft = getSeatDraft(i);
+          const cid = seatAssignments[i] || null;
+          const st = cid ? (teacherState.get(cid) || { logs: [] }) : null;
+          const curUrl1 = normalizeUrlValue(cid ? (st?.url1 ?? draft.url1 ?? "") : (draft.url1 || ""));
+          const curUrl2 = normalizeUrlValue(cid ? (st?.url2 ?? draft.url2 ?? "") : (draft.url2 || ""));
+
+          // Keep existing URL values; fill only blanks from CSV
+          const nextUrl1 = curUrl1 || csvUrl1;
+          const nextUrl2 = curUrl2 || csvUrl2;
+
+          const seatChanged = (draft.url1 || "") !== nextUrl1 || (draft.url2 || "") !== nextUrl2;
+          draft.url1 = nextUrl1;
+          draft.url2 = nextUrl2;
+          if (seatChanged) changed++;
+
+          if (cid && st) {
+            const studentChanged = (st.url1 || "") !== nextUrl1 || (st.url2 || "") !== nextUrl2;
+            st.url1 = nextUrl1;
+            st.url2 = nextUrl2;
+            teacherState.set(cid, st);
+            if (studentChanged && ws && ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ type: "url_update", clientId: cid, url1: nextUrl1, url2: nextUrl2 }));
+            }
+          }
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: "seat_plan_update", seatIndex: i, url1: nextUrl1, url2: nextUrl2 }));
+          }
+        }
+        scheduleRenderStudents();
+        alert(`URLリストを反映しました（更新: ${changed} 行）。`);
+      } catch (e) {
+        alert(`CSVの読み込みに失敗しました: ${String(e?.message || e)}`);
+      } finally {
+        if (teacherUploadUrlListFile) teacherUploadUrlListFile.value = "";
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  teacherDownloadRosterBtn?.addEventListener("click", () => {
+    if (role !== "teacher") return;
+    const rows = [];
+    ensureSeatCapacity(teacherSeatCount);
+    for (let i = 0; i < teacherSeatCount; i++) {
+      const cid = seatAssignments[i] || "";
+      const draft = getSeatDraft(i);
+      const st = cid ? (teacherState.get(cid) || {}) : {};
+      const name = cid ? String(st.name || "") : "";
+      const memo = cid ? String(st.memo ?? draft.memo ?? "") : String(draft.memo || "");
+      const url1 = cid ? String(st.url1 ?? draft.url1 ?? "") : String(draft.url1 || "");
+      const url2 = cid ? String(st.url2 ?? draft.url2 ?? "") : String(draft.url2 || "");
+      rows.push([String(i + 1), name, cid, memo, url1, url2]);
+    }
+    const room = getRoomSafe();
+    const filename = `students_${room}_${timestampForFilename()}.csv`;
+    downloadCsv(filename, ["連番", "なまえ", "id", "メモ", "URL1", "URL2"], rows);
   });
 
   function setMaximized(kind, on) {
