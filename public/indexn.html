@@ -1,0 +1,2364 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Seminar JS Runner</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans JP", sans-serif;
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+    }
+    body.theme-lite {
+      --bg: #e9eef5;
+      --panel: #ffffff;
+      --panel-alt: #f3f6fb;
+      --text: #1b2430;
+      --muted: #5c6b7a;
+      --border: #cdd6e1;
+      --header-bg: #d7e2ef;
+      --card-header-bg: #edf2f8;
+      --button-bg: #ffffff;
+      --button-text: #1b2430;
+      --button-border: #bfc9d6;
+      --button-primary-bg: #223d6a;
+      --button-primary-text: #ffffff;
+      --button-primary-border: #223d6a;
+      --button-soft-bg: #e3eaf3;
+      --button-soft-text: #20364f;
+      --button-soft-border: #c4d2e3;
+      --button-tint-blue-bg: #d9efff;
+      --button-tint-blue-text: #0b4a7a;
+      --button-tint-blue-border: #9fd1f6;
+      --button-tint-orange-bg: #ffe6cf;
+      --button-tint-orange-text: #7a3e00;
+      --button-tint-orange-border: #f5b985;
+      --tag-off-bg: #eef2f6;
+      --tag-off-text: #6c7b8a;
+      --tag-off-border: #d7e1ec;
+      --tag-done-bg: #2f6f3a;
+      --tag-question-bg: #8a6b00;
+      --badge-bg: #2f3a46;
+      --badge-text: #ffffff;
+      --badge-border: #2f3a46;
+      --pill-bg: #f2f6fb;
+      --pill-text: #1b2430;
+      --pill-border: #7b8aa0;
+      --link: #0b4a7a;
+    }
+    body.theme-dark {
+      --bg: #3f4046;
+      --panel: #4a4b52;
+      --panel-alt: #45464d;
+      --text: #f2f2f6;
+      --muted: #c9c9d4;
+      --border: #5f6069;
+      --header-bg: #2f3036;
+      --card-header-bg: #3a3b41;
+      --button-bg: #5a5b64;
+      --button-text: #f2f2f6;
+      --button-border: #6b6c76;
+      --button-primary-bg: #ff4f87;
+      --button-primary-text: #fff;
+      --button-primary-border: #ff4f87;
+      --button-soft-bg: #626370;
+      --button-soft-text: #f2f2f6;
+      --button-soft-border: #727380;
+      --button-tint-blue-bg: #5b6e7b;
+      --button-tint-blue-text: #eaf6ff;
+      --button-tint-blue-border: #6f8796;
+      --button-tint-orange-bg: #8a6b4f;
+      --button-tint-orange-text: #fff2e3;
+      --button-tint-orange-border: #9a7a5f;
+      --tag-off-bg: #585964;
+      --tag-off-text: #d7d7e2;
+      --tag-off-border: #6b6c76;
+      --tag-done-bg: #50b26a;
+      --tag-question-bg: #d9a14a;
+      --badge-bg: #6b6b75;
+      --badge-text: #ffffff;
+      --badge-border: #6b6b75;
+      --pill-bg: #3a3b41;
+      --pill-text: #ffffff;
+      --pill-border: #d6d6e0;
+      --link: #cde7ff;
+    }
+    body.theme-picnic {
+      --bg: #d7ee9a;
+      --panel: #f7ffe0;
+      --panel-alt: #f0f9d0;
+      --text: #2c3a1f;
+      --muted: #5c6a3a;
+      --border: #c4d58b;
+      --header-bg: #b8dd6a;
+      --card-header-bg: #e7f4c1;
+      --button-bg: #f7ffe0;
+      --button-text: #2c3a1f;
+      --button-border: #b9cf7c;
+      --button-primary-bg: #ff8b3d;
+      --button-primary-text: #fff;
+      --button-primary-border: #ff8b3d;
+      --button-soft-bg: #eaf6c2;
+      --button-soft-text: #2c3a1f;
+      --button-soft-border: #c7da8c;
+      --button-tint-blue-bg: #cfe9ff;
+      --button-tint-blue-text: #1e4e7a;
+      --button-tint-blue-border: #9fc7ea;
+      --button-tint-orange-bg: #ffd9b8;
+      --button-tint-orange-text: #7a3e00;
+      --button-tint-orange-border: #f1b581;
+      --tag-off-bg: #e6f1bf;
+      --tag-off-text: #5c6a3a;
+      --tag-off-border: #d2e3a3;
+      --tag-done-bg: #2f6f3a;
+      --tag-question-bg: #8a6b00;
+      --badge-bg: #4f6b2a;
+      --badge-text: #ffffff;
+      --badge-border: #4f6b2a;
+      --pill-bg: #e7f4c1;
+      --pill-text: #2c3a1f;
+      --pill-border: #6a7c3f;
+      --link: #1e4e7a;
+    }
+    body.theme-dic579 {
+      --bg: #0f2a4a;
+      --panel: #183a5e;
+      --panel-alt: #153353;
+      --text: #f3f7ff;
+      --muted: #c2d2ea;
+      --border: #27476c;
+      --header-bg: #0d2745;
+      --card-header-bg: #132f52;
+      --button-bg: #1a4168;
+      --button-text: #f3f7ff;
+      --button-border: #2a4f79;
+      --button-primary-bg: #3cb0ff;
+      --button-primary-text: #08223a;
+      --button-primary-border: #3cb0ff;
+      --button-soft-bg: #1f476f;
+      --button-soft-text: #f3f7ff;
+      --button-soft-border: #2d557f;
+      --button-tint-blue-bg: #1f5b8f;
+      --button-tint-blue-text: #e7f4ff;
+      --button-tint-blue-border: #2b6aa0;
+      --button-tint-orange-bg: #2b5b77;
+      --button-tint-orange-text: #e8f3ff;
+      --button-tint-orange-border: #3b6d8c;
+      --tag-off-bg: #204262;
+      --tag-off-text: #cfe0f7;
+      --tag-off-border: #2a4f79;
+      --tag-done-bg: #3dbb7b;
+      --tag-question-bg: #f0b248;
+      --badge-bg: #1a3553;
+      --badge-text: #f3f7ff;
+      --badge-border: #2a4f79;
+      --pill-bg: #112b4a;
+      --pill-text: #f3f7ff;
+      --pill-border: #cfe0f7;
+      --link: #a8d8ff;
+    }
+    header { padding: 12px 16px; border-bottom: 1px solid var(--border); display:flex; gap:12px; align-items:center; flex-wrap: wrap; background: var(--header-bg); }
+    main { display: grid; grid-template-columns: 1fr 420px; gap: 12px; padding: 12px; }
+    body.teacher-mode main { grid-template-columns: 1fr; }
+    textarea {
+      width: 100%;
+      min-height: 320px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      font-size: 13px;
+      padding: 10px;
+      box-sizing: border-box;
+      background: var(--panel);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    input, select {
+      background: var(--panel);
+      color: var(--text);
+      border: 1px solid var(--border) !important;
+    }
+    a { color: var(--link); }
+    .card { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--panel); }
+    .card h3 { margin: 0; padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 14px; background: var(--card-header-bg); }
+    .card-head-row { margin: 0; padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 14px; background: var(--card-header-bg); display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    .card-head-actions { display:flex; gap:6px; align-items:center; }
+    .card-head-actions button { padding: 6px 8px; font-size: 12px; }
+    .card .content { padding: 10px 12px; }
+    button { padding: 8px 10px; border-radius: 8px; border: 1px solid var(--button-border); background: var(--button-bg); color: var(--button-text); cursor: pointer; }
+    button.primary { background: var(--button-primary-bg); color: var(--button-primary-text); border-color: var(--button-primary-border); }
+    button.tint-blue { background: var(--button-tint-blue-bg); border-color: var(--button-tint-blue-border); color: var(--button-tint-blue-text); }
+    button.tint-orange { background: var(--button-tint-orange-bg); border-color: var(--button-tint-orange-border); color: var(--button-tint-orange-text); }
+    /* subtle but clear ON/OFF (invert on ON) */
+    button.soft { background: var(--button-soft-bg); color: var(--button-soft-text); border-color: var(--button-soft-border); }
+    button.soft.active-done { background: var(--tag-done-bg); border-color: var(--tag-done-bg); color:#fff; }
+    button.soft.active-question { background: var(--tag-question-bg); border-color: var(--tag-question-bg); color:#fff; }
+    .row { display:flex; gap:8px; align-items:center; flex-wrap: wrap;}
+    .muted { color: var(--muted); font-size: 12px; }
+    #logs { white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.35; max-height: 420px; overflow:auto; }
+    #students { max-height: 320px; overflow:auto; }
+    .student { padding: 6px 8px; border-bottom: 1px solid var(--border); display:flex; align-items:center; gap:8px; overflow:hidden; }
+    .student-head { flex: 0 0 240px; min-width: 240px; display:flex; justify-content:space-between; align-items:baseline; gap:10px; cursor: pointer; margin-bottom: 0; overflow:hidden; }
+    .student-name { font-weight: 600; }
+    .student-meta { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .student-id { font-size: 11px; color: var(--muted); }
+    .memo-input { width: auto; min-width: 120px; flex: 1 1 0; box-sizing:border-box; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; padding: 6px 8px; border:1px solid var(--border); border-radius:8px; background: var(--panel); color: var(--text); height: 30px; }
+    .student-fields { flex: 1 1 auto; min-width: 0; display:flex; gap:6px; align-items:center; flex-wrap:nowrap; overflow:hidden; }
+    .url-edit { display:flex; gap:6px; align-items:center; min-width: 0; flex: 1 1 0; overflow:hidden; }
+    .url-input { width: 100%; min-width: 120px; box-sizing:border-box; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; padding: 6px 8px; border:1px solid var(--border); border-radius:8px; background: var(--panel); color: var(--text); height: 30px; }
+    .url-edit button { white-space: nowrap; flex: 0 0 auto; padding: 6px 8px; }
+    .tag { font-size: 11px; padding: 2px 6px; border: 1px solid var(--tag-off-border); border-radius: 999px; }
+    .tag-off { background: var(--tag-off-bg); border-color: var(--tag-off-border); color: var(--tag-off-text); }
+    .tag-done-on { background: var(--tag-done-bg); border-color: var(--tag-done-bg); color:#fff; }
+    .tag-question-on { background: var(--tag-question-bg); border-color: var(--tag-question-bg); color:#fff; }
+    .teacher-info { font-size: 14px; }
+    .teacher-msg { font-size: 12px; padding: 6px 10px; border:1px solid var(--badge-border); border-radius:999px; background: var(--badge-bg); color: var(--badge-text); max-width: 520px; overflow:hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .teacher-msg.empty { display:none; }
+    .teacher-msg-input { padding:6px 8px; border:1px solid #ccc; border-radius:999px; min-width: 260px; max-width: 520px; }
+    .pill { font-size: 11px; padding: 2px 6px; border: 1px solid var(--pill-border); border-radius: 999px; color: var(--pill-text); background: var(--pill-bg); }
+    iframe { width: 100%; height: 260px; border: 0; background: var(--panel); }
+    .danger { color:#a00; }
+    .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 2000; display:none; padding: 18px; box-sizing: border-box; }
+    .modal { max-width: 980px; height: min(80vh, 720px); margin: 0 auto; background: var(--panel); border:1px solid var(--border); border-radius: 14px; overflow:hidden; display:flex; flex-direction:column; }
+    .modal-head { padding: 10px 12px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center; gap:10px; }
+    .modal-body { padding: 10px 12px; overflow:auto; }
+    .modal-body pre { margin:0; white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.45; }
+    .res-list { display:flex; flex-direction:column; gap:8px; }
+    .res-item { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:8px 10px; border:1px solid var(--border); border-radius:12px; }
+    .res-item a { color: var(--link); text-decoration: none; }
+    .res-item a:hover { text-decoration: underline; }
+    .res-edit-row { display:grid; grid-template-columns: 1fr 2fr auto; gap:8px; align-items:center; margin-bottom:8px; }
+    .res-edit-row input { padding:6px 8px; border:1px solid var(--border); border-radius:10px; }
+    .maximize-bar { position: fixed; top: 12px; left: 12px; right: 12px; z-index: 1002; display: none; background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 8px 10px; }
+    .runner-wrap { border: 1px solid var(--border); border-radius: 10px; overflow: hidden; background: var(--panel); }
+    .teacher-work { display:grid; grid-template-columns: 1fr 360px; gap: 10px; align-items:start; margin-top:10px; }
+    .teacher-left { min-width: 0; }
+    .teacher-right { min-width: 0; }
+    #teacherLogs { max-height: 460px; overflow:auto; white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.35; }
+    body.maximized { overflow: hidden; }
+    body.student-maximized #studentMaxBar { display: flex; }
+    body.student-maximized #studentRunnerWrap { position: fixed; inset: 60px 12px 12px 12px; z-index: 1001; border: 1px solid #ddd; border-radius: 12px; background: #fff; padding: 8px; }
+    body.student-maximized #studentRunnerWrap iframe { height: 100%; }
+    @media (max-width: 980px) {
+      main { grid-template-columns: 1fr; }
+      .student-fields { flex-wrap: wrap; }
+      .teacher-work { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body class="theme-lite">
+<header>
+  <strong>Seminar JS Runner</strong>
+  <span class="pill" id="rolePill"></span>
+  <div class="row">
+    <label class="muted">ルーム:</label>
+    <input id="room" value="demo" style="padding:6px 8px;border:1px solid #ccc;border-radius:8px;" />
+    <label class="muted" id="nameLabel">なまえ:</label>
+    <input id="name" value="" placeholder="任意（例: Tanaka）" style="padding:6px 8px;border:1px solid #ccc;border-radius:8px;" />
+    <span class="muted" id="nameHelp"></span>
+    <button class="primary" id="connectBtn">Connect</button>
+    <a class="muted" id="qrLink" href="/qr.html?room=demo" target="_blank" rel="noopener">QRページ</a>
+  </div>
+  <span class="muted" id="status"></span>
+  <span class="row">
+    <label class="muted">配色:</label>
+    <select id="themeSelect" style="padding:6px 8px;border:1px solid #ccc;border-radius:8px;">
+      <option value="lite">lite</option>
+      <option value="dark">dark</option>
+      <option value="picnic">picnic</option>
+      <option value="dic579">DIC579</option>
+    </select>
+  </span>
+  <span class="row" id="studentSignalWrap" style="margin-left:auto;display:none;">
+    <span class="teacher-msg empty" id="teacherMsg" title="講師からのメッセージ"></span>
+    <button class="soft" id="studentDoneBtn" title="講師に「できました」を通知">できました</button>
+    <button class="soft" id="studentQuestionBtn" title="講師に「質問あり」を通知">質問あり</button>
+    <button class="soft" id="studentUrl1Btn" title="URL1を別タブで開く">URL1</button>
+    <button class="soft" id="studentUrl2Btn" title="URL2を別タブで開く">URL2</button>
+    <button class="soft" id="studentResourcesBtn" title="関係資料">関係資料</button>
+  </span>
+  <span class="row" id="teacherControlsWrap" style="margin-left:auto;display:none;">
+    <input class="teacher-msg-input" id="teacherMsgInput" placeholder="受講者へメッセージ（例: 5分休憩 / 〇〇に進んでください）" />
+    <button class="soft" id="teacherMsgSendBtn">送信</button>
+    <label class="muted" style="display:flex;gap:6px;align-items:center;">
+      <input type="checkbox" id="teacherShowAllLogs" checked />
+      Logs: 全員（OFFで選択者のみ）
+    </label>
+    <label class="muted" style="display:flex;gap:6px;align-items:center;">
+      <input type="checkbox" id="teacherLockName" />
+      名前変更禁止
+    </label>
+    <button id="teacherClearRoomBtn">受講者一覧リセット</button>
+    <button class="soft" id="teacherResourcesBtn" title="関係資料">関係資料</button>
+  </span>
+</header>
+<main>
+  <section class="card" id="leftCard">
+    <h3 id="leftTitle">コード</h3>
+    <div class="content">
+      <!-- STUDENT -->
+      <div id="studentPane">
+        <div class="row" style="margin-bottom:8px;">
+          <input id="programName" placeholder="プログラム名" style="padding:6px 8px;border:1px solid #ccc;border-radius:8px;min-width:160px;" />
+          <button class="primary" id="runBtn">Run（プログラムを動かす）</button>
+          <button class="tint-orange" id="studentMaxBtn">実行画面最大化</button>
+          <button id="clearBtn">Logクリア</button>
+          <button class="tint-blue" id="clearCodeBtn">Codeクリア</button>
+          <button id="extractBtn">HTML→JS抽出</button>
+          <button id="studentDlBtn">HTMLでDL</button>
+          <button id="studentImportBtn">HTML読み込み</button>
+          <input id="studentImportFile" type="file" accept=".html,text/html" style="display:none;" />
+          <button class="soft" id="helpBtn" title="使い方（USERS_GUIDE）">？</button>
+        </div>
+        <div class="row maximize-bar" id="studentMaxBar">
+          <span class="muted" id="studentProgramNameMax"></span>
+          <button class="primary" id="runBtnMax">Run（プログラムを動かす）</button>
+          <button id="studentRestoreBtn">実行画面を元のサイズに戻す</button>
+        </div>
+        <textarea id="code" placeholder="// ChatGPTで生成したJSをここに貼り付け
+console.log('hello');"></textarea>
+        <div class="row" style="margin-top:10px;">
+          <span class="muted">実行プレビュー（sandbox iframe）</span>
+        </div>
+        <div id="studentRunnerWrap" class="runner-wrap">
+          <iframe id="runner" sandbox="allow-scripts"></iframe>
+        </div>
+      </div>
+
+      <!-- TEACHER -->
+      <div id="teacherPane" style="display:none;">
+        <div class="row" style="margin-bottom:8px;">
+          <span class="muted">受講者をクリック → コード/ログ参照。実行は「別タブで実行」をスクリーンに映す。</span>
+        </div>
+
+        <div class="card" style="border-radius:10px;">
+          <div class="card-head-row">
+            <strong>受講者一覧</strong>
+            <div class="card-head-actions">
+              <button id="teacherUploadUrlListBtn">URLリスト登録</button>
+              <button id="teacherClearUrl1Btn">URL1クリア</button>
+              <button id="teacherClearUrl2Btn">URL2クリア</button>
+              <button id="teacherDownloadRosterBtn">受講者一覧ダウンロード</button>
+            </div>
+          </div>
+          <div class="content" id="students"></div>
+        </div>
+        <input id="teacherUploadUrlListFile" type="file" accept=".csv,text/csv" style="display:none;" />
+
+        <div class="row" style="margin-top:10px;">
+          <span class="muted teacher-info" id="teacherProgramName"></span>
+          <button id="teacherCopyBtn">コードをコピー</button>
+          <button id="teacherDlBtn">HTMLでDL</button>
+          <button id="teacherImportBtn">HTML読み込み</button>
+          <input id="teacherImportFile" type="file" accept=".html,text/html" style="display:none;" />
+          <button id="teacherRunPopupBtn">別タブで実行</button>
+          <button id="teacherClosePopupBtn">別タブを閉じる</button>
+          <button id="teacherWritebackBtn">Code書き戻し</button>
+          <span class="muted teacher-info" id="teacherSelInfo"></span>
+          <span class="pill" id="teacherSelId"></span>
+          <button class="soft" id="teacherHelpBtn" title="使い方（USERS_GUIDE）">？</button>
+        </div>
+
+        <div class="teacher-work">
+          <div class="teacher-left">
+            <textarea id="teacherCode" readonly></textarea>
+          </div>
+          <div class="card teacher-right">
+            <h3>Logs</h3>
+            <div class="content">
+              <div id="teacherLogs"></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="teacherWritebackPanel" style="display:none;margin-top:10px;border:1px solid #eee;border-radius:10px;padding:10px;">
+          <div class="row" style="margin-bottom:8px;">
+            <strong style="font-size:13px;">Code書き戻し</strong>
+            <span class="muted" id="teacherWritebackInfo"></span>
+          </div>
+          <textarea id="teacherWritebackCode" placeholder="// ここに貼り付け → 「送る」で受講者のコードを差し替え（自動実行はしません）"></textarea>
+          <div class="row" style="margin-top:8px;">
+            <button class="primary" id="teacherWritebackSendBtn">送る</button>
+            <button id="teacherWritebackCancelBtn">キャンセル</button>
+            <span class="danger" style="font-size:12px;">※ 受講者のコード欄が差し替わりますので十分注意してから送信してください</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <aside class="card" id="globalLogsCard">
+    <h3>Logs</h3>
+    <div class="content">
+      <div id="logs"></div>
+    </div>
+  </aside>
+</main>
+
+<div class="modal-backdrop" id="helpModal">
+  <div class="modal" role="dialog" aria-modal="true" aria-label="使い方">
+    <div class="modal-head">
+      <strong style="font-size:13px;">使い方（USERS_GUIDE）</strong>
+      <div class="row">
+        <button id="helpCloseBtn">閉じる</button>
+      </div>
+    </div>
+    <div class="modal-body">
+      <pre id="helpText">読み込み中...</pre>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="resourcesModal">
+  <div class="modal" role="dialog" aria-modal="true" aria-label="関係資料">
+    <div class="modal-head">
+      <strong style="font-size:13px;">関係資料</strong>
+      <div class="row">
+        <button id="resourcesEditBtn" style="display:none;">編集する</button>
+        <button id="resourcesCloseBtn">閉じる</button>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div id="resourcesView">
+        <div class="res-list" id="resourcesList"></div>
+        <div class="muted" id="resourcesEmpty" style="display:none;">（まだ登録がありません）</div>
+      </div>
+      <div id="resourcesEdit" style="display:none;">
+        <div class="muted" style="margin-bottom:8px;">タイトルとURL（http/https）を入力して保存してください。</div>
+        <div id="resourcesEditRows"></div>
+        <div class="row" style="margin-top:8px;">
+          <button id="resourcesAddRowBtn">追加</button>
+          <button class="primary" id="resourcesSaveBtn">保存</button>
+          <button id="resourcesCancelBtn">キャンセル</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const qs = new URLSearchParams(location.search);
+  const role = (qs.get("role") === "teacher") ? "teacher" : "student";
+  const rolePill = document.getElementById("rolePill");
+  rolePill.textContent = role === "teacher" ? "TEACHER" : "STUDENT";
+
+  const roomEl = document.getElementById("room");
+  const nameLabelEl = document.getElementById("nameLabel");
+  const nameEl = document.getElementById("name");
+  const nameHelpEl = document.getElementById("nameHelp");
+  const themeSelect = document.getElementById("themeSelect");
+  const connectBtn = document.getElementById("connectBtn");
+  const statusEl = document.getElementById("status");
+  const qrLink = document.getElementById("qrLink");
+  const studentSignalWrap = document.getElementById("studentSignalWrap");
+  const teacherMsg = document.getElementById("teacherMsg");
+  const studentDoneBtn = document.getElementById("studentDoneBtn");
+  const studentQuestionBtn = document.getElementById("studentQuestionBtn");
+  const studentUrl1Btn = document.getElementById("studentUrl1Btn");
+  const studentUrl2Btn = document.getElementById("studentUrl2Btn");
+  const studentResourcesBtn = document.getElementById("studentResourcesBtn");
+  const teacherControlsWrap = document.getElementById("teacherControlsWrap");
+  const teacherMsgInput = document.getElementById("teacherMsgInput");
+  const teacherMsgSendBtn = document.getElementById("teacherMsgSendBtn");
+
+  const studentPane = document.getElementById("studentPane");
+  const teacherPane = document.getElementById("teacherPane");
+  const programNameEl = document.getElementById("programName");
+  const codeEl = document.getElementById("code");
+  const runBtn = document.getElementById("runBtn");
+  const runBtnMax = document.getElementById("runBtnMax");
+  const studentMaxBtn = document.getElementById("studentMaxBtn");
+  const studentRestoreBtn = document.getElementById("studentRestoreBtn");
+  const studentProgramNameMax = document.getElementById("studentProgramNameMax");
+  const clearBtn = document.getElementById("clearBtn");
+  const clearCodeBtn = document.getElementById("clearCodeBtn");
+  const extractBtn = document.getElementById("extractBtn");
+  const studentDlBtn = document.getElementById("studentDlBtn");
+  const studentImportBtn = document.getElementById("studentImportBtn");
+  const studentImportFile = document.getElementById("studentImportFile");
+  const helpBtn = document.getElementById("helpBtn");
+  const helpModal = document.getElementById("helpModal");
+  const helpCloseBtn = document.getElementById("helpCloseBtn");
+  const helpText = document.getElementById("helpText");
+  const resourcesModal = document.getElementById("resourcesModal");
+  const resourcesCloseBtn = document.getElementById("resourcesCloseBtn");
+  const resourcesEditBtn = document.getElementById("resourcesEditBtn");
+  const resourcesList = document.getElementById("resourcesList");
+  const resourcesEmpty = document.getElementById("resourcesEmpty");
+  const resourcesView = document.getElementById("resourcesView");
+  const resourcesEdit = document.getElementById("resourcesEdit");
+  const resourcesEditRows = document.getElementById("resourcesEditRows");
+  const resourcesAddRowBtn = document.getElementById("resourcesAddRowBtn");
+  const resourcesSaveBtn = document.getElementById("resourcesSaveBtn");
+  const resourcesCancelBtn = document.getElementById("resourcesCancelBtn");
+  const runner = document.getElementById("runner");
+  const logsEl = document.getElementById("logs");
+  const teacherLogsEl = document.getElementById("teacherLogs");
+  const globalLogsCard = document.getElementById("globalLogsCard");
+
+  const studentsEl = document.getElementById("students");
+  const teacherCodeEl = document.getElementById("teacherCode");
+  const teacherCopyBtn = document.getElementById("teacherCopyBtn");
+  const teacherDlBtn = document.getElementById("teacherDlBtn");
+  const teacherImportBtn = document.getElementById("teacherImportBtn");
+  const teacherImportFile = document.getElementById("teacherImportFile");
+  const teacherRunPopupBtn = document.getElementById("teacherRunPopupBtn");
+  const teacherClosePopupBtn = document.getElementById("teacherClosePopupBtn");
+  const teacherWritebackBtn = document.getElementById("teacherWritebackBtn");
+  const teacherWritebackPanel = document.getElementById("teacherWritebackPanel");
+  const teacherWritebackInfo = document.getElementById("teacherWritebackInfo");
+  const teacherWritebackCode = document.getElementById("teacherWritebackCode");
+  const teacherWritebackSendBtn = document.getElementById("teacherWritebackSendBtn");
+  const teacherWritebackCancelBtn = document.getElementById("teacherWritebackCancelBtn");
+  const teacherShowAllLogs = document.getElementById("teacherShowAllLogs");
+  const teacherLockName = document.getElementById("teacherLockName");
+  const teacherClearRoomBtn = document.getElementById("teacherClearRoomBtn");
+  const teacherUploadUrlListBtn = document.getElementById("teacherUploadUrlListBtn");
+  const teacherClearUrl1Btn = document.getElementById("teacherClearUrl1Btn");
+  const teacherClearUrl2Btn = document.getElementById("teacherClearUrl2Btn");
+  const teacherDownloadRosterBtn = document.getElementById("teacherDownloadRosterBtn");
+  const teacherUploadUrlListFile = document.getElementById("teacherUploadUrlListFile");
+  const teacherResourcesBtn = document.getElementById("teacherResourcesBtn");
+  const teacherSelInfo = document.getElementById("teacherSelInfo");
+  const teacherSelId = document.getElementById("teacherSelId");
+  const teacherHelpBtn = document.getElementById("teacherHelpBtn");
+  const teacherProgramName = document.getElementById("teacherProgramName");
+
+  if (role === "teacher") {
+    document.body.classList.add("teacher-mode");
+    if (nameLabelEl) nameLabelEl.textContent = "人数:";
+    if (nameHelpEl) nameHelpEl.textContent = "";
+    if (nameEl) {
+      nameEl.type = "number";
+      nameEl.min = "1";
+      nameEl.step = "1";
+      nameEl.value = String(Math.max(1, Number(localStorage.getItem("seminar_seat_count") || "20") || 20));
+      nameEl.placeholder = "例: 20";
+    }
+    studentPane.style.display = "none";
+    teacherPane.style.display = "block";
+    document.getElementById("leftTitle").textContent = "講師ダッシュボード";
+    if (studentSignalWrap) studentSignalWrap.style.display = "none";
+    if (teacherControlsWrap) teacherControlsWrap.style.display = "flex";
+    if (globalLogsCard) globalLogsCard.style.display = "none";
+  } else {
+    document.body.classList.remove("teacher-mode");
+    if (nameLabelEl) nameLabelEl.textContent = "なまえ:";
+    if (nameEl) {
+      nameEl.type = "text";
+      nameEl.removeAttribute("min");
+      nameEl.removeAttribute("step");
+      nameEl.placeholder = "任意（例: Tanaka）";
+    }
+    if (studentSignalWrap) studentSignalWrap.style.display = "flex";
+    if (teacherControlsWrap) teacherControlsWrap.style.display = "none";
+    if (globalLogsCard) globalLogsCard.style.display = "block";
+  }
+
+  // Persistent clientId per device
+  const clientIdKey = "seminar_client_id_v1";
+  let clientId = localStorage.getItem(clientIdKey);
+  if (!clientId) {
+    clientId = (crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(16).slice(2));
+    localStorage.setItem(clientIdKey, clientId);
+  }
+
+  // remember last room/name
+  roomEl.value = localStorage.getItem("seminar_room") || roomEl.value;
+  if (role === "teacher") {
+    nameEl.value = String(Math.max(1, Number(localStorage.getItem("seminar_seat_count") || nameEl.value || "20") || 20));
+  } else {
+    nameEl.value = filterDisplayName(localStorage.getItem("seminar_name") || nameEl.value);
+  }
+  if (programNameEl) {
+    programNameEl.value = filterDisplayName(localStorage.getItem("seminar_program_name") || "");
+  }
+  updateStudentProgramNameLabels();
+
+  // theme (lite/dark/picnic)
+  const themeKey = "seminar_theme";
+  const themeClasses = ["theme-lite", "theme-dark", "theme-picnic", "theme-dic579"];
+  function applyTheme(nextTheme) {
+    const t = (nextTheme === "dark" || nextTheme === "picnic" || nextTheme === "dic579") ? nextTheme : "lite";
+    document.body.classList.remove(...themeClasses);
+    document.body.classList.add(`theme-${t}`);
+    if (themeSelect) themeSelect.value = t;
+    localStorage.setItem(themeKey, t);
+  }
+  applyTheme(localStorage.getItem(themeKey) || "lite");
+  themeSelect?.addEventListener("change", () => applyTheme(themeSelect.value));
+
+  let ws = null;
+  let selectedStudentId = null;
+  const teacherState = new Map(); // clientId -> {name, code, logs, lastSeen}
+  let roomNameLocked = false;
+  let teacherPopupWin = null;
+  const memoSendTimers = new Map(); // clientId -> timeoutId
+  let teacherSeatCount = 20;
+  const seatAssignments = []; // index -> clientId|null
+  const seatDrafts = []; // index -> { memo, url1, url2 }
+  const clientSeatMap = new Map(); // clientId -> index
+  let memoFocusState = null; // {clientId, selectionStart, selectionEnd, scrollLeft}
+  let isRenderingStudents = false;
+  let isMemoComposing = false;
+  let urlFocusState = null;
+  let renderStudentsTimer = null;
+  let studentSignal = ""; // "" | "done" | "question"
+  let writebackTargetId = null;
+  let writebackPendingTimer = null;
+  let helpLoaded = false;
+  let roomResources = []; // Array<{title,url}>
+  let resourcesEditMode = false;
+  const urlSendTimers = new Map(); // clientId -> timeoutId
+  let studentAssignedUrl1 = "";
+  let studentAssignedUrl2 = "";
+  applyStudentUrlButtons();
+  if (role === "teacher") {
+    setTeacherSeatCount(nameEl?.value || localStorage.getItem("seminar_seat_count") || "20");
+  }
+
+  function scheduleRenderStudents() {
+    if (role !== "teacher") return;
+    if (renderStudentsTimer) return;
+    renderStudentsTimer = setTimeout(() => {
+      renderStudentsTimer = null;
+      if (isMemoComposing) {
+        scheduleRenderStudents();
+        return;
+      }
+      renderStudents();
+    }, 80);
+  }
+
+  function applyTeacherSelection(id, s) {
+    selectedStudentId = id;
+    teacherCodeEl.value = s.code || "";
+    clearLogsUI();
+    (s.logs || []).forEach(line => appendLog(line));
+    if (teacherSelInfo) teacherSelInfo.textContent = `選択: ${s.name || "Student"}`;
+    if (teacherSelId) teacherSelId.textContent = id ? `id: ${id}` : "";
+    if (teacherProgramName) {
+      teacherProgramName.textContent = s.programName ? `プログラム名: ${s.programName}` : "";
+    }
+  }
+
+  function setStatus(txt) { statusEl.textContent = txt; }
+
+  function getActiveLogsEl() {
+    if (role === "teacher" && teacherLogsEl) return teacherLogsEl;
+    return logsEl;
+  }
+
+  function appendLog(line) {
+    const el = getActiveLogsEl();
+    if (!el) return;
+    el.textContent += line + "\n";
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function clearLogsUI() {
+    if (logsEl) logsEl.textContent = "";
+    if (teacherLogsEl) teacherLogsEl.textContent = "";
+  }
+
+  function openUrlInNewTab(raw) {
+    const url = toOpenableUrl(raw);
+    if (!url) return;
+    window.open(url, "_blank", "noopener");
+  }
+
+  function supportsUnicodeProps() {
+    try { new RegExp("\\p{L}", "u"); return true; } catch { return false; }
+  }
+
+  function filterDisplayName(raw) {
+    const text = String(raw || "").normalize("NFKC");
+    // allow: letters/numbers (any script), space, underscore, hyphen, ・, ー
+    const re = supportsUnicodeProps()
+      ? /[^\p{L}\p{N} _\-・ー]/gu
+      : /[^A-Za-z0-9 _\-ぁ-んァ-ヶ\u3400-\u9FFF\uF900-\uFAFF・ー]/g;
+    let out = text.replace(re, "");
+    out = out.replace(/\s+/g, " ").trim();
+    if (out.length > 40) out = out.slice(0, 40);
+    return out;
+  }
+
+  function normalizeUrlValue(raw) {
+    let out = String(raw || "").trim();
+    if (out.length > 2000) out = out.slice(0, 2000);
+    return out;
+  }
+
+  function normalizeSeatCount(raw) {
+    const n = Math.floor(Number(raw));
+    if (!Number.isFinite(n) || n < 1) return 1;
+    if (n > 200) return 200;
+    return n;
+  }
+
+  function ensureSeatCapacity(nextCount) {
+    const count = normalizeSeatCount(nextCount);
+    while (seatAssignments.length < count) seatAssignments.push(null);
+    while (seatDrafts.length < count) seatDrafts.push({ memo: "", url1: "", url2: "" });
+    seatAssignments.length = count;
+    seatDrafts.length = count;
+    for (const [cid, idx] of [...clientSeatMap.entries()]) {
+      if (idx >= count) clientSeatMap.delete(cid);
+    }
+    teacherSeatCount = count;
+  }
+
+  function getSeatDraft(idx) {
+    if (!seatDrafts[idx]) seatDrafts[idx] = { memo: "", url1: "", url2: "" };
+    return seatDrafts[idx];
+  }
+
+  function setTeacherSeatCount(nextCount, options = {}) {
+    const silent = !!options.silent;
+    ensureSeatCapacity(nextCount);
+    localStorage.setItem("seminar_seat_count", String(teacherSeatCount));
+    if (!silent && role === "teacher" && ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "seat_plan_update", count: teacherSeatCount }));
+    }
+    scheduleRenderStudents();
+  }
+
+  function assignClientToSeat(clientId, preferredIdx = -1) {
+    if (!clientId) return -1;
+    if (clientSeatMap.has(clientId)) return clientSeatMap.get(clientId);
+    let idx = -1;
+    if (Number.isInteger(preferredIdx) && preferredIdx >= 0) {
+      ensureSeatCapacity(preferredIdx + 1);
+      if (!seatAssignments[preferredIdx] || seatAssignments[preferredIdx] === clientId) {
+        idx = preferredIdx;
+      }
+    }
+    if (idx < 0) idx = seatAssignments.findIndex(v => !v);
+    if (idx < 0) {
+      idx = seatAssignments.length;
+      ensureSeatCapacity(idx + 1);
+      if (nameEl && role === "teacher") nameEl.value = String(teacherSeatCount);
+    }
+    seatAssignments[idx] = clientId;
+    clientSeatMap.set(clientId, idx);
+    const d = getSeatDraft(idx);
+    const s = teacherState.get(clientId) || { logs: [] };
+    s.url1 = s.url1 || d.url1 || "";
+    s.url2 = s.url2 || d.url2 || "";
+    if (!s.memo) s.memo = d.memo || "";
+    teacherState.set(clientId, s);
+    if (ws && ws.readyState === WebSocket.OPEN && (s.url1 || s.url2)) {
+      ws.send(JSON.stringify({ type: "url_update", clientId, url1: s.url1 || "", url2: s.url2 || "" }));
+    }
+    return idx;
+  }
+
+  function applySeatPlanState(payload) {
+    if (role !== "teacher") return;
+    const count = normalizeSeatCount(payload?.count || 20);
+    ensureSeatCapacity(count);
+    seatAssignments.fill(null);
+    clientSeatMap.clear();
+    const seats = Array.isArray(payload?.seats) ? payload.seats : [];
+    for (let i = 0; i < teacherSeatCount; i++) {
+      const src = seats[i] || {};
+      const cid = src.clientId ? String(src.clientId) : null;
+      seatAssignments[i] = cid;
+      if (cid) clientSeatMap.set(cid, i);
+      seatDrafts[i] = {
+        memo: String(src.memo || ""),
+        url1: normalizeUrlValue(src.url1 || ""),
+        url2: normalizeUrlValue(src.url2 || "")
+      };
+      if (cid) {
+        const s = teacherState.get(cid) || { logs: [] };
+        if (!s.memo) s.memo = seatDrafts[i].memo;
+        if (!s.url1) s.url1 = seatDrafts[i].url1;
+        if (!s.url2) s.url2 = seatDrafts[i].url2;
+        teacherState.set(cid, s);
+      }
+    }
+    if (nameEl) nameEl.value = String(teacherSeatCount);
+    localStorage.setItem("seminar_seat_count", String(teacherSeatCount));
+    scheduleRenderStudents();
+  }
+
+  function rebuildSeatAssignmentsFromState() {
+    ensureSeatCapacity(teacherSeatCount);
+    seatAssignments.fill(null);
+    clientSeatMap.clear();
+    const ids = [...teacherState.entries()]
+      .sort((a, b) => (a[1]?.lastSeen || 0) - (b[1]?.lastSeen || 0))
+      .map(([id]) => id);
+    for (const id of ids) assignClientToSeat(id);
+  }
+
+  function toOpenableUrl(raw) {
+    let url = normalizeUrlValue(raw);
+    if (!url) return "";
+    url = url.replace(/\s+/g, "");
+    if (/^https?:\/\//i.test(url)) return url;
+    if (/^[\w.-]+\.[A-Za-z]{2,}(?:[\/?#]|$)/.test(url)) return `https://${url}`;
+    alert("URL形式が不正です。http:// または https://（省略時は https:// を自動補完）");
+    return "";
+  }
+
+  function csvEscape(v) {
+    const s = String(v ?? "");
+    if (/[",\r\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+    return s;
+  }
+
+  function parseCsv(text) {
+    const rows = [];
+    let row = [];
+    let cell = "";
+    let inQuotes = false;
+    const src = String(text || "");
+    for (let i = 0; i < src.length; i++) {
+      const ch = src[i];
+      const next = src[i + 1];
+      if (inQuotes) {
+        if (ch === '"' && next === '"') { cell += '"'; i++; continue; }
+        if (ch === '"') { inQuotes = false; continue; }
+        cell += ch;
+        continue;
+      }
+      if (ch === '"') { inQuotes = true; continue; }
+      if (ch === ",") { row.push(cell); cell = ""; continue; }
+      if (ch === "\n") { row.push(cell); rows.push(row); row = []; cell = ""; continue; }
+      if (ch === "\r") continue;
+      cell += ch;
+    }
+    row.push(cell);
+    rows.push(row);
+    return rows.map(r => r.map(c => String(c || "").trim())).filter(r => r.some(c => c !== ""));
+  }
+
+  function downloadCsv(filename, header, rows) {
+    const lines = [header.map(csvEscape).join(",")];
+    for (const r of rows) lines.push(r.map(csvEscape).join(","));
+    const csv = "\uFEFF" + lines.join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function sanitizeForFilename(name) {
+    // Windows forbidden: \ / : * ? " < > | + control chars
+    let out = String(name || "").normalize("NFKC").trim();
+    out = out.replace(/[\\\/:*?"<>|\x00-\x1F]/g, "");
+    out = out.replace(/\s+/g, " ").trim();
+    out = out.replace(/[\. ]+$/g, ""); // no trailing dot/space (Windows)
+    if (!out) out = "student_code";
+    // reserved device names (Windows)
+    const upper = out.toUpperCase();
+    if (/^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(\..*)?$/.test(upper)) out = "_" + out;
+    if (out.length > 80) out = out.slice(0, 80);
+    return out;
+  }
+
+  function extractProgramNameFromTitle(titleText) {
+    const raw = String(titleText || "").normalize("NFKC").trim();
+    if (!raw) return "";
+    const idx = raw.indexOf("(");
+    const base = idx >= 0 ? raw.slice(0, idx) : raw;
+    return filterDisplayName(base);
+  }
+
+  function parseTitleMeta(titleText) {
+    const raw = String(titleText || "").normalize("NFKC").trim();
+    if (!raw) return { programName: "", studentName: "" };
+    const firstIdx = raw.indexOf("(");
+    if (firstIdx < 0) {
+      return { programName: filterDisplayName(raw), studentName: "" };
+    }
+    const programName = filterDisplayName(raw.slice(0, firstIdx).trim());
+    const m = raw.slice(firstIdx).match(/\(([^()]*)\)/);
+    const studentName = m ? filterDisplayName(m[1]) : "";
+    return { programName, studentName };
+  }
+
+  function parseHtmlProgram(text, fallbackName = "") {
+    const doc = new DOMParser().parseFromString(String(text || ""), "text/html");
+    const meta = parseTitleMeta(doc?.title || "");
+    const scripts = Array.from(doc.querySelectorAll("script"))
+      .filter(s => !s.src)
+      .map(s => (s.textContent || "").trim())
+      .filter(Boolean);
+    const code = scripts.join("\n\n");
+    const fallback = filterDisplayName(fallbackName || "");
+    const programName = meta.programName || fallback || "";
+    const studentName = meta.studentName || "";
+    return { code, programName, studentName };
+  }
+
+  function updateStudentProgramNameLabels() {
+    if (!studentProgramNameMax) return;
+    const p = filterDisplayName(programNameEl?.value || "");
+    studentProgramNameMax.textContent = p ? `プログラム名: ${p}` : "";
+  }
+
+  function getProgramNameSafe() {
+    const raw = filterDisplayName(programNameEl?.value || "");
+    return raw || "program";
+  }
+
+  function getNameSafe() {
+    if (role === "teacher") return "Teacher";
+    return filterDisplayName(nameEl?.value || "") || "Student";
+  }
+
+  function getRoomSafe() {
+    return (roomEl?.value || "demo").trim() || "demo";
+  }
+
+  function timestampForFilename(d = new Date()) {
+    const pad = (n, w = 2) => String(n).padStart(w, "0");
+    const yyyy = d.getFullYear();
+    const mm = pad(d.getMonth() + 1);
+    const dd = pad(d.getDate());
+    const hh = pad(d.getHours());
+    const mi = pad(d.getMinutes());
+    const ss = pad(d.getSeconds());
+    const ms = pad(d.getMilliseconds(), 3);
+    return `${yyyy}${mm}${dd}_${hh}${mi}${ss}_${ms}`;
+  }
+
+  function applyNameLock() {
+    if (role !== "student") return;
+    const locked = !!roomNameLocked;
+    if (nameEl) nameEl.disabled = locked;
+    if (nameHelpEl) nameHelpEl.textContent = locked ? "（講師が名前変更を禁止中）" : "";
+  }
+
+  function openPopupRunner(kind, code, title) {
+    const w = window.open("", "_blank", "width=980,height=720");
+    if (!w) {
+      appendLog("[warn] 別タブ（ポップアップ）を開けませんでした。ブラウザのポップアップブロック設定をご確認ください。");
+      return null;
+    }
+    const safeTitle = String(title || "Runner");
+    const safeCode = String(code || "").replace(/<\/script>/gi, "<\\/script>");
+    const html = `<!doctype html><html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${safeTitle}</title>
+<style>
+  body{font-family:system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans JP",sans-serif;margin:0;padding:12px;}
+  .muted{color:#666;font-size:12px;}
+  pre{white-space:pre-wrap;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px;line-height:1.35;border:1px solid #eee;border-radius:10px;padding:10px;max-height:40vh;overflow:auto;}
+  iframe{width:100%;height:52vh;border:1px solid #eee;border-radius:12px;background:#fff;}
+</style>
+</head><body>
+<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px;">
+  <strong>${safeTitle}</strong>
+  <span class="muted">（無限ループなどで固まったら、このタブを閉じてください）</span>
+</div>
+<pre id="log"></pre>
+<iframe id="runFrame" sandbox="allow-scripts"></iframe>
+<script>
+(function(){
+  const logEl = document.getElementById("log");
+  const frame = document.getElementById("runFrame");
+  const send = (level, args) => {
+    try {
+      window.opener && window.opener.postMessage({__popup_runner:true, kind:${JSON.stringify(kind)}, level, args}, "*");
+    } catch(e) {}
+  };
+  const append = (level, args) => {
+    try {
+      const line = "[" + level + "] " + (args||[]).map(a => {
+        try { return (typeof a === "string") ? a : JSON.stringify(a); } catch(e){ return String(a); }
+      }).join(" ");
+      logEl.textContent += line + "\\n";
+      logEl.scrollTop = logEl.scrollHeight;
+    } catch(e) {}
+  };
+  window.addEventListener("message", (ev) => {
+    if (!ev.data || !ev.data.__popup_iframe) return;
+    const { level, args } = ev.data;
+    send(level, args);
+    append(level, args);
+  });
+  const END = "</scr" + "ipt>";
+  const srcdoc =
+    "<!doctype html><html><head><meta charset=\\"utf-8\\"></head><body>" +
+    "<script>(function(){" +
+      "const sendUp=(level,args)=>parent.postMessage({__popup_iframe:true,level,args},\\"*\\");" +
+      "const wrap=(fn)=>{const o=console[fn];console[fn]=(...a)=>{try{sendUp(fn,a)}catch(e){};o&&o.apply(console,a);};};" +
+      "[\\"log\\",\\"info\\",\\"warn\\",\\"error\\"].forEach(wrap);" +
+      "window.addEventListener(\\"error\\",(e)=>sendUp(\\"error\\",[String(e.message||e.error||e)]));" +
+      "window.addEventListener(\\"unhandledrejection\\",(e)=>sendUp(\\"error\\",[String(e.reason||e)]));" +
+    "})();" + END +
+    "<script>" + ${JSON.stringify(safeCode)} + END +
+    "</body></html>";
+  if (frame) frame.srcdoc = srcdoc;
+})();
+<\/script>
+</body></html>`;
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+    return w;
+  }
+
+  function applyStudentSignalUI() {
+    if (!studentDoneBtn || !studentQuestionBtn) return;
+    studentDoneBtn.classList.toggle("active-done", studentSignal === "done");
+    studentQuestionBtn.classList.toggle("active-question", studentSignal === "question");
+  }
+
+  function setStudentSignal(next) {
+    studentSignal = next || "";
+    applyStudentSignalUI();
+    if (role !== "student") return;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({ type: "signal_update", signal: studentSignal }));
+  }
+
+  function applyStudentUrlButtons() {
+    const has1 = !!studentAssignedUrl1;
+    const has2 = !!studentAssignedUrl2;
+    if (studentUrl1Btn) {
+      studentUrl1Btn.disabled = !has1;
+      studentUrl1Btn.title = has1 ? studentAssignedUrl1 : "講師がURL1を未設定です";
+    }
+    if (studentUrl2Btn) {
+      studentUrl2Btn.disabled = !has2;
+      studentUrl2Btn.title = has2 ? studentAssignedUrl2 : "講師がURL2を未設定です";
+    }
+  }
+
+  function applyStudentUrlState(url1, url2) {
+    if (role !== "student") return;
+    studentAssignedUrl1 = normalizeUrlValue(url1 || "");
+    studentAssignedUrl2 = normalizeUrlValue(url2 || "");
+    applyStudentUrlButtons();
+  }
+
+  function applyTeacherMessageUI(msg) {
+    if (!teacherMsg) return;
+    const t = String(msg || "").trim();
+    teacherMsg.textContent = t;
+    teacherMsg.classList.toggle("empty", !t);
+    if (teacherMsg) teacherMsg.title = t ? `講師メッセージ: ${t}` : "講師からのメッセージ";
+  }
+
+  function sendTeacherMessage() {
+    if (role !== "teacher") return;
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      alert("未接続です（WebSocketが未接続）。Connect後にお試しください。");
+      return;
+    }
+    const msg = String(teacherMsgInput?.value || "");
+    ws.send(JSON.stringify({ type: "teacher_message_update", message: msg }));
+  }
+
+  async function openHelp() {
+    if (!helpModal || !helpText) return;
+    helpModal.style.display = "block";
+    if (helpLoaded) return;
+    try {
+      const res = await fetch("/api/users_guide", { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const txt = await res.text();
+      helpText.textContent = txt;
+      helpLoaded = true;
+    } catch (e) {
+      helpText.textContent = `読み込みに失敗しました: ${String(e?.message || e)}\n\n※ サーバが起動しているか確認してください。`;
+    }
+  }
+
+  function closeHelp() {
+    if (!helpModal) return;
+    helpModal.style.display = "none";
+  }
+
+  function renderResourcesView() {
+    if (!resourcesList || !resourcesEmpty) return;
+    resourcesList.innerHTML = "";
+    const arr = Array.isArray(roomResources) ? roomResources : [];
+    resourcesEmpty.style.display = arr.length ? "none" : "block";
+    for (const r of arr) {
+      const row = document.createElement("div");
+      row.className = "res-item";
+      const a = document.createElement("a");
+      a.href = r.url;
+      a.target = "_blank";
+      a.rel = "noopener";
+      a.textContent = r.title;
+      const right = document.createElement("div");
+      right.className = "row";
+      right.style.flexWrap = "nowrap";
+      const u = document.createElement("span");
+      u.className = "muted";
+      u.textContent = (r.url || "").replace(/^https?:\/\//i, "");
+      const openBtn = document.createElement("button");
+      openBtn.textContent = "開く";
+      openBtn.addEventListener("click", () => openUrlInNewTab(r.url || ""));
+      row.appendChild(a);
+      right.appendChild(u);
+      right.appendChild(openBtn);
+      row.appendChild(right);
+      resourcesList.appendChild(row);
+    }
+  }
+
+  function renderResourcesEdit() {
+    if (!resourcesEditRows) return;
+    resourcesEditRows.innerHTML = "";
+    const arr = Array.isArray(roomResources) ? roomResources : [];
+    const ensure = arr.length ? arr : [{ title: "", url: "" }];
+    for (let i = 0; i < ensure.length; i++) {
+      const r = ensure[i] || {};
+      const wrap = document.createElement("div");
+      wrap.className = "res-edit-row";
+      const title = document.createElement("input");
+      title.placeholder = "タイトル";
+      title.value = String(r.title || "");
+      const url = document.createElement("input");
+      url.placeholder = "https://...";
+      url.value = String(r.url || "");
+      const del = document.createElement("button");
+      del.textContent = "削除";
+      del.onclick = () => {
+        ensure.splice(i, 1);
+        roomResources = ensure.filter(x => x && (x.title || x.url));
+        renderResourcesEdit();
+      };
+      wrap.appendChild(title);
+      wrap.appendChild(url);
+      wrap.appendChild(del);
+      resourcesEditRows.appendChild(wrap);
+    }
+  }
+
+  function setResourcesMode(edit) {
+    resourcesEditMode = !!edit;
+    if (resourcesView) resourcesView.style.display = resourcesEditMode ? "none" : "block";
+    if (resourcesEdit) resourcesEdit.style.display = resourcesEditMode ? "block" : "none";
+    if (resourcesEditBtn) resourcesEditBtn.style.display = (role === "teacher") ? (resourcesEditMode ? "none" : "inline-block") : "none";
+    if (resourcesEditMode) renderResourcesEdit();
+    else renderResourcesView();
+  }
+
+  async function openResources() {
+    if (!resourcesModal) return;
+    resourcesModal.style.display = "block";
+    setResourcesMode(false);
+  }
+
+  function closeResources() {
+    if (!resourcesModal) return;
+    resourcesModal.style.display = "none";
+    setResourcesMode(false);
+  }
+
+  function stripJsCodeFence(code) {
+    if (!code) return code;
+    const match = String(code).match(/^\s*```js\s*\r?\n([\s\S]*?)\r?\n```\s*$/i);
+    return match ? match[1] : code;
+  }
+
+  // ---------- Student runner (sandbox iframe, console forwarding to parent -> WS) ----------
+  function runStudentCode(code) {
+    const srcdoc = `
+<!doctype html><html><head><meta charset="utf-8"></head><body>
+<script>
+(function(){
+  const send = (type, payload) => parent.postMessage({__runner: true, type, payload}, "*");
+  const wrap = (fnName) => {
+    const orig = console[fnName];
+    console[fnName] = (...args) => {
+      try { send("log", {level: fnName, args}); } catch(e) {}
+      orig.apply(console, args);
+    };
+  }
+  ;
+  ["log","info","warn","error"].forEach(wrap);
+  window.addEventListener("error", (e) => {
+    send("log", {level:"error", args:[String(e.message || e.error || e)]});
+  });
+  window.addEventListener("unhandledrejection", (e) => {
+    send("log", {level:"error", args:[String(e.reason || e)]});
+  });
+})();
+<\/script>
+<script>
+${code}
+<\/script>
+</body></html>`;
+    runner.srcdoc = srcdoc;
+  }
+
+  window.addEventListener("message", (ev) => {
+    // popup runner log
+    if (ev.data && ev.data.__popup_runner) {
+      const { kind, level, args } = ev.data;
+      if (kind === "teacher" && role === "teacher") {
+        const line = `[teacher:${level}] ` + (args || []).map(a => {
+          try { return typeof a === "string" ? a : JSON.stringify(a); } catch { return String(a); }
+        }).join(" ");
+        appendLog(line);
+        return;
+      }
+    }
+
+    // student preview log -> send to server
+    if (ev.data && ev.data.__runner && role === "student") {
+      if (ev.data.type === "log") {
+        const { level, args } = ev.data.payload || {};
+        const line = `[${level}] ` + (args || []).map(a => {
+          try { return typeof a === "string" ? a : JSON.stringify(a); } catch { return String(a); }
+        }).join(" ");
+        appendLog(line);
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: "log", line }));
+        }
+      }
+      return;
+    }
+
+    // teacher iframe preview log (removed)
+  });
+
+  // ---------- Runボタンのみ運用 ----------
+  // inputでは「共有（code_update）」だけ。自動実行しない
+  codeEl?.addEventListener("input", () => {
+    if (role !== "student") return;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({ type: "code_update", code: codeEl.value, programName: getProgramNameSafe() }));
+  });
+
+  programNameEl?.addEventListener("input", () => {
+    const filtered = filterDisplayName(programNameEl.value);
+    if (filtered !== programNameEl.value) programNameEl.value = filtered;
+    localStorage.setItem("seminar_program_name", programNameEl.value);
+    updateStudentProgramNameLabels();
+    if (role !== "student") return;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({ type: "program_update", programName: getProgramNameSafe() }));
+  });
+
+  studentUrl1Btn?.addEventListener("click", () => openUrlInNewTab(studentAssignedUrl1));
+  studentUrl2Btn?.addEventListener("click", () => openUrlInNewTab(studentAssignedUrl2));
+
+  studentDoneBtn?.addEventListener("click", () => {
+    if (role !== "student") return;
+    setStudentSignal(studentSignal === "done" ? "" : "done");
+  });
+
+  studentQuestionBtn?.addEventListener("click", () => {
+    if (role !== "student") return;
+    setStudentSignal(studentSignal === "question" ? "" : "question");
+  });
+
+  helpBtn?.addEventListener("click", () => {
+    // student-only button (but safe even if hidden)
+    openHelp();
+  });
+
+  teacherHelpBtn?.addEventListener("click", () => {
+    openHelp();
+  });
+
+  helpCloseBtn?.addEventListener("click", closeHelp);
+  helpModal?.addEventListener("click", (e) => {
+    if (e.target === helpModal) closeHelp();
+  });
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeHelp();
+  });
+
+  studentResourcesBtn?.addEventListener("click", openResources);
+  teacherResourcesBtn?.addEventListener("click", openResources);
+  resourcesCloseBtn?.addEventListener("click", closeResources);
+  resourcesModal?.addEventListener("click", (e) => {
+    if (e.target === resourcesModal) closeResources();
+  });
+  resourcesEditBtn?.addEventListener("click", () => {
+    if (role !== "teacher") return;
+    setResourcesMode(true);
+  });
+  resourcesAddRowBtn?.addEventListener("click", () => {
+    if (role !== "teacher") return;
+    roomResources = [...(Array.isArray(roomResources) ? roomResources : []), { title: "", url: "" }].slice(0, 50);
+    renderResourcesEdit();
+  });
+  resourcesCancelBtn?.addEventListener("click", () => setResourcesMode(false));
+  resourcesSaveBtn?.addEventListener("click", () => {
+    if (role !== "teacher") return;
+    if (!resourcesEditRows) return;
+    const rows = Array.from(resourcesEditRows.querySelectorAll(".res-edit-row"));
+    const next = [];
+    for (const row of rows) {
+      const inputs = row.querySelectorAll("input");
+      const title = String(inputs?.[0]?.value || "").trim();
+      const url = String(inputs?.[1]?.value || "").trim();
+      if (!title && !url) continue;
+      if (!/^https?:\/\//i.test(url)) {
+        alert("URLは http:// または https:// から始めてください。");
+        return;
+      }
+      next.push({ title: title.slice(0, 80), url: url.slice(0, 2000) });
+    }
+    roomResources = next;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "resources_update", resources: roomResources }));
+    }
+    setResourcesMode(false);
+  });
+
+  teacherMsgSendBtn?.addEventListener("click", sendTeacherMessage);
+  teacherMsgInput?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      sendTeacherMessage();
+    }
+  });
+
+  // name: filename-safe-ish characters only + (if connected) share update
+  nameEl?.addEventListener("input", () => {
+    if (role === "teacher") {
+      const count = normalizeSeatCount(nameEl.value || "20");
+      if (String(count) !== String(nameEl.value || "")) nameEl.value = String(count);
+      setTeacherSeatCount(count);
+      return;
+    }
+    const filtered = filterDisplayName(nameEl.value);
+    if (filtered !== nameEl.value) nameEl.value = filtered;
+    localStorage.setItem("seminar_name", nameEl.value);
+    if (role !== "student") return;
+    if (roomNameLocked) return;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({ type: "name_update", name: (nameEl.value || "").trim() }));
+  });
+
+  function setTeacherWritebackOpen(open) {
+    if (!teacherWritebackPanel) return;
+    teacherWritebackPanel.style.display = open ? "block" : "none";
+  }
+
+  teacherWritebackBtn?.addEventListener("click", () => {
+    if (role !== "teacher") return;
+    if (!selectedStudentId) {
+      alert("受講者を先に選択してください（受講者一覧の名前をクリック）。");
+      return;
+    }
+    writebackTargetId = selectedStudentId;
+    const s = teacherState.get(selectedStudentId) || {};
+    if (teacherWritebackInfo) {
+      teacherWritebackInfo.textContent = `送信先: ${s.name || "Student"}`;
+    }
+    if (teacherWritebackCode) {
+      teacherWritebackCode.value = teacherCodeEl.value || "";
+      teacherWritebackCode.focus();
+    }
+    setTeacherWritebackOpen(true);
+  });
+
+  teacherWritebackCancelBtn?.addEventListener("click", () => {
+    if (role !== "teacher") return;
+    writebackTargetId = null;
+    if (writebackPendingTimer) { clearTimeout(writebackPendingTimer); writebackPendingTimer = null; }
+    if (teacherWritebackSendBtn) teacherWritebackSendBtn.disabled = false;
+    setTeacherWritebackOpen(false);
+  });
+
+  teacherWritebackSendBtn?.addEventListener("click", () => {
+    if (role !== "teacher") return;
+    const targetId = writebackTargetId || selectedStudentId;
+    if (!targetId) {
+      alert("送信先が未選択です。受講者一覧から選択してください。");
+      return;
+    }
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      alert("未接続です（WebSocketが未接続）。Connect後にお試しください。");
+      return;
+    }
+    const code = teacherWritebackCode?.value || "";
+    if (teacherWritebackSendBtn) teacherWritebackSendBtn.disabled = true;
+    try {
+      ws.send(JSON.stringify({ type: "force_code", clientId: targetId, code }));
+    } catch {
+      if (teacherWritebackSendBtn) teacherWritebackSendBtn.disabled = false;
+      alert("送信に失敗しました。");
+      return;
+    }
+    // If no response comes back, allow retry
+    if (writebackPendingTimer) clearTimeout(writebackPendingTimer);
+    writebackPendingTimer = setTimeout(() => {
+      writebackPendingTimer = null;
+      if (teacherWritebackSendBtn) teacherWritebackSendBtn.disabled = false;
+      alert("送信結果が返ってきませんでした（タイムアウト）。接続状況をご確認ください。");
+    }, 3000);
+  });
+
+  function runStudent() {
+    if (role !== "student") return;
+    const programNameRaw = filterDisplayName(programNameEl?.value || "");
+    if (!programNameRaw) {
+      alert("プログラム名を入力してください。");
+      if (programNameEl) programNameEl.focus();
+      return;
+    }
+    const rawCode = codeEl.value || "";
+    const code = stripJsCodeFence(rawCode);
+
+    clearLogsUI();
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "code_update", code: rawCode, programName: getProgramNameSafe() }));
+      ws.send(JSON.stringify({ type: "clear_logs" }));
+    }
+    runStudentCode(code);
+  }
+
+  runBtn?.addEventListener("click", runStudent);
+  runBtnMax?.addEventListener("click", runStudent);
+
+  clearBtn?.addEventListener("click", () => {
+    clearLogsUI();
+    if (ws && ws.readyState === WebSocket.OPEN && role === "student") {
+      ws.send(JSON.stringify({ type: "clear_logs" }));
+    }
+  });
+
+  
+  // ---------- Clear code (student) ----------
+  clearCodeBtn?.addEventListener("click", () => {
+    if (role !== "student") return;
+
+    codeEl.value = "";
+    if (programNameEl) {
+      programNameEl.value = "";
+      localStorage.setItem("seminar_program_name", "");
+      updateStudentProgramNameLabels();
+    }
+
+    // share cleared code to teacher
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "code_update", code: "" }));
+    }
+
+    // clear preview
+    runner.srcdoc = '<!doctype html><meta charset="utf-8"><body></body>';
+
+    appendLog("[info] code cleared");
+  });
+
+  // ---------- Extract inline <script> from HTML in code area (student) ----------
+  extractBtn?.addEventListener("click", () => {
+    if (role !== "student") return;
+    const text = codeEl.value || "";
+
+    if (!/<script[\s>]/i.test(text)) {
+      appendLog("[warn] <script> が見つかりません（HTMLを貼ってください）");
+      return;
+    }
+
+    const doc = new DOMParser().parseFromString(text, "text/html");
+    const scripts = Array.from(doc.querySelectorAll("script"))
+      .filter(s => !s.src)
+      .map(s => (s.textContent || "").trim())
+      .filter(Boolean);
+
+    if (!scripts.length) {
+      appendLog("[warn] インラインscriptが見つかりません（src付きは無視します）");
+      return;
+    }
+
+    const js = scripts.join("\n\n");
+    codeEl.value = js;
+
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({ type: "code_update", code: js }));
+    }
+
+    appendLog("[info] HTMLからJSを抽出しました（Runで実行してください）");
+  });
+
+  // ---------- Student: download HTML from current code ----------
+  studentDlBtn?.addEventListener("click", () => {
+    if (role !== "student") return;
+    const code = codeEl.value || "";
+    if (!code.trim()) return;
+    const base = `${getProgramNameSafe()}(${getNameSafe()})(${getRoomSafe()})${timestampForFilename()}`;
+    downloadHtmlFromCode(code, base);
+  });
+
+  studentImportBtn?.addEventListener("click", () => {
+    if (role !== "student") return;
+    studentImportFile?.click();
+  });
+
+  studentImportFile?.addEventListener("change", () => {
+    if (role !== "student") return;
+    const file = studentImportFile?.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const text = String(reader.result || "");
+        const fallbackName = file.name.replace(/\.[^.]+$/, "");
+        const { code, programName } = parseHtmlProgram(text, fallbackName);
+        if (!code.trim()) {
+          appendLog("[warn] HTML内にインライン<scr" + "ipt>が見つかりません。");
+          return;
+        }
+        codeEl.value = code;
+        if (programNameEl && programName) programNameEl.value = programName;
+        localStorage.setItem("seminar_program_name", programNameEl?.value || "");
+        updateStudentProgramNameLabels();
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: "code_update", code, programName: getProgramNameSafe() }));
+        }
+        appendLog(`[info] HTMLから読み込みました: ${programNameEl?.value || "program"}`);
+      } catch {
+        appendLog("[warn] HTMLの読み込みに失敗しました。");
+      } finally {
+        if (studentImportFile) studentImportFile.value = "";
+      }
+    };
+    reader.readAsText(file);
+  });
+
+// ---------- Teacher: download HTML from selected student's code ----------
+  function downloadHtmlFromCode(code, filenameBase = "student_code") {
+    const safe = sanitizeForFilename(filenameBase || "student_code");
+    const normalized = stripJsCodeFence(code || "");
+    const safeCode = String(normalized).replace(/<\/script>/gi, "<\\/script>");
+    const html = `<!doctype html><html lang="ja"><meta charset="utf-8">
+<title>${safe}</title>
+<body>
+<script>
+${safeCode}
+<\/script>
+</body></html>`;
+    const blob = new Blob([html], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${safe}.html`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  teacherCopyBtn?.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(teacherCodeEl.value || "");
+      teacherSelInfo.textContent = (teacherSelInfo.textContent || "") + " / copied";
+    } catch {}
+  });
+
+  teacherDlBtn?.addEventListener("click", () => {
+    const code = teacherCodeEl.value || "";
+    if (!code.trim()) return;
+    const s = teacherState.get(selectedStudentId) || {};
+    const p = filterDisplayName(s.programName || "") || "program";
+    const n = filterDisplayName(s.name || "") || "Student";
+    const r = (roomEl?.value || "demo").trim() || "demo";
+    const base = `${p}(${n})(${r})${timestampForFilename()}`;
+    downloadHtmlFromCode(code, base);
+  });
+
+  teacherImportBtn?.addEventListener("click", () => {
+    if (role !== "teacher") return;
+    teacherImportFile?.click();
+  });
+
+  teacherImportFile?.addEventListener("change", () => {
+    if (role !== "teacher") return;
+    const file = teacherImportFile?.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const text = String(reader.result || "");
+        const fallbackName = file.name.replace(/\.[^.]+$/, "");
+        const { code, programName, studentName } = parseHtmlProgram(text, fallbackName);
+        if (!code.trim()) {
+          appendLog("[warn] HTML内にインライン<scr" + "ipt>が見つかりません。");
+          return;
+        }
+        // find matching connected student by name
+        let matchedId = null;
+        let matched = null;
+        if (studentName) {
+          for (const [id, s] of teacherState.entries()) {
+            if ((s.name || "") === studentName) {
+              if (!matched || (s.lastSeen || 0) > (matched.lastSeen || 0)) {
+                matchedId = id;
+                matched = s;
+              }
+            }
+          }
+        }
+
+        if (matchedId && matched) {
+          matched.code = code;
+          matched.programName = programName || matched.programName || "";
+          teacherState.set(matchedId, matched);
+          applyTeacherSelection(matchedId, matched);
+        } else {
+          const name = studentName ? `${studentName}（未接続）` : "未接続（読み込み）";
+          let existingId = null;
+          let existing = null;
+          for (const [id, s] of teacherState.entries()) {
+            if ((s.name || "") === name) {
+              existingId = id;
+              existing = s;
+              break;
+            }
+          }
+          if (existingId && existing) {
+            existing.code = code;
+            existing.programName = programName || existing.programName || "";
+            existing.lastSeen = Date.now();
+            teacherState.set(existingId, existing);
+            applyTeacherSelection(existingId, existing);
+          } else {
+            const id = `imported_${Date.now()}`;
+            const entry = { name, code, logs: [], memo: "", programName: programName || "", lastSeen: Date.now() };
+            teacherState.set(id, entry);
+            applyTeacherSelection(id, entry);
+          }
+        }
+
+        scheduleRenderStudents();
+        appendLog(`[info] HTMLから読み込みました: ${programName || "program"}`);
+      } catch {
+        appendLog("[warn] HTMLの読み込みに失敗しました。");
+      } finally {
+        if (teacherImportFile) teacherImportFile.value = "";
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  // ---------- Teacher: run preview removed (use popup) ----------
+
+  teacherRunPopupBtn?.addEventListener("click", () => {
+    if (role !== "teacher") return;
+    const rawCode = teacherCodeEl.value || "";
+    const code = stripJsCodeFence(rawCode);
+    if (!code.trim()) return;
+    clearLogsUI();
+    if (teacherPopupWin && !teacherPopupWin.closed) {
+      try { teacherPopupWin.close(); } catch {}
+    }
+    teacherPopupWin = openPopupRunner("teacher", code, "Teacher Runner (popup)");
+  });
+
+  teacherClosePopupBtn?.addEventListener("click", () => {
+    if (teacherPopupWin && !teacherPopupWin.closed) {
+      try { teacherPopupWin.close(); } catch {}
+    }
+    teacherPopupWin = null;
+  });
+
+  teacherLockName?.addEventListener("change", () => {
+    if (role !== "teacher") return;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({ type: "set_name_lock", locked: !!teacherLockName.checked }));
+  });
+
+  teacherClearRoomBtn?.addEventListener("click", () => {
+    if (role !== "teacher") return;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    const ok = confirm("受講者一覧をリセットします。\nこの部屋のコード/ログのサーバ保持分が削除されます。\nよろしいですか？");
+    if (!ok) return;
+    selectedStudentId = null;
+    teacherCodeEl.value = "";
+    teacherSelInfo.textContent = "（リセット中）";
+    clearLogsUI();
+    ws.send(JSON.stringify({ type: "clear_room" }));
+  });
+
+  teacherUploadUrlListBtn?.addEventListener("click", () => {
+    if (role !== "teacher") return;
+    teacherUploadUrlListFile?.click();
+  });
+
+  function clearSeatUrlSlot(slot) {
+    if (role !== "teacher") return;
+    const target = slot === "url2" ? "url2" : "url1";
+    let changed = 0;
+    for (let i = 0; i < teacherSeatCount; i++) {
+      const draft = getSeatDraft(i);
+      const cid = seatAssignments[i] || null;
+      if (draft[target]) changed++;
+      draft[target] = "";
+      if (cid) {
+        const st = teacherState.get(cid) || { logs: [] };
+        st[target] = "";
+        teacherState.set(cid, st);
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: "url_update", clientId: cid, url1: st.url1 || "", url2: st.url2 || "" }));
+        }
+      }
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type: "seat_plan_update", seatIndex: i, [target]: "" }));
+      }
+    }
+    scheduleRenderStudents();
+    alert(`${target.toUpperCase()}をクリアしました（${changed} 行）。`);
+  }
+
+  teacherClearUrl1Btn?.addEventListener("click", () => clearSeatUrlSlot("url1"));
+  teacherClearUrl2Btn?.addEventListener("click", () => clearSeatUrlSlot("url2"));
+
+  teacherUploadUrlListFile?.addEventListener("change", () => {
+    if (role !== "teacher") return;
+    const file = teacherUploadUrlListFile?.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const text = String(reader.result || "");
+        let rows = parseCsv(text);
+        if (!rows.length) {
+          alert("CSVにデータがありません。");
+          return;
+        }
+        const h0 = String(rows[0]?.[0] || "").toLowerCase().replace(/\s+/g, "");
+        const h1 = String(rows[0]?.[1] || "").toLowerCase().replace(/\s+/g, "");
+        if (h0 === "url1" && h1 === "url2") rows = rows.slice(1);
+        if (rows.length !== teacherSeatCount) {
+          alert(`CSVの行数（${rows.length}）と人数（${teacherSeatCount}）が一致しません。人数を合わせてからアップロードしてください。`);
+          return;
+        }
+
+        let changed = 0;
+        for (let i = 0; i < teacherSeatCount; i++) {
+          const row = rows[i] || [];
+          const csvUrl1 = normalizeUrlValue(row[0] || "");
+          const csvUrl2 = normalizeUrlValue(row[1] || "");
+          const draft = getSeatDraft(i);
+          const cid = seatAssignments[i] || null;
+          const st = cid ? (teacherState.get(cid) || { logs: [] }) : null;
+          const curUrl1 = normalizeUrlValue(cid ? (st?.url1 ?? draft.url1 ?? "") : (draft.url1 || ""));
+          const curUrl2 = normalizeUrlValue(cid ? (st?.url2 ?? draft.url2 ?? "") : (draft.url2 || ""));
+
+          // Keep existing URL values; fill only blanks from CSV
+          const nextUrl1 = curUrl1 || csvUrl1;
+          const nextUrl2 = curUrl2 || csvUrl2;
+
+          const seatChanged = (draft.url1 || "") !== nextUrl1 || (draft.url2 || "") !== nextUrl2;
+          draft.url1 = nextUrl1;
+          draft.url2 = nextUrl2;
+          if (seatChanged) changed++;
+
+          if (cid && st) {
+            const studentChanged = (st.url1 || "") !== nextUrl1 || (st.url2 || "") !== nextUrl2;
+            st.url1 = nextUrl1;
+            st.url2 = nextUrl2;
+            teacherState.set(cid, st);
+            if (studentChanged && ws && ws.readyState === WebSocket.OPEN) {
+              ws.send(JSON.stringify({ type: "url_update", clientId: cid, url1: nextUrl1, url2: nextUrl2 }));
+            }
+          }
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: "seat_plan_update", seatIndex: i, url1: nextUrl1, url2: nextUrl2 }));
+          }
+        }
+        scheduleRenderStudents();
+        alert(`URLリストを反映しました（更新: ${changed} 行）。`);
+      } catch (e) {
+        alert(`CSVの読み込みに失敗しました: ${String(e?.message || e)}`);
+      } finally {
+        if (teacherUploadUrlListFile) teacherUploadUrlListFile.value = "";
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  teacherDownloadRosterBtn?.addEventListener("click", () => {
+    if (role !== "teacher") return;
+    const rows = [];
+    ensureSeatCapacity(teacherSeatCount);
+    for (let i = 0; i < teacherSeatCount; i++) {
+      const cid = seatAssignments[i] || "";
+      const draft = getSeatDraft(i);
+      const st = cid ? (teacherState.get(cid) || {}) : {};
+      const name = cid ? String(st.name || "") : "";
+      const memo = cid ? String(st.memo ?? draft.memo ?? "") : String(draft.memo || "");
+      const url1 = cid ? String(st.url1 ?? draft.url1 ?? "") : String(draft.url1 || "");
+      const url2 = cid ? String(st.url2 ?? draft.url2 ?? "") : String(draft.url2 || "");
+      rows.push([String(i + 1), name, cid, memo, url1, url2]);
+    }
+    const room = getRoomSafe();
+    const filename = `students_${room}_${timestampForFilename()}.csv`;
+    downloadCsv(filename, ["連番", "なまえ", "id", "メモ", "URL1", "URL2"], rows);
+  });
+
+  function setMaximized(kind, on) {
+    document.body.classList.toggle("maximized", on);
+    document.body.classList.toggle(`${kind}-maximized`, on);
+  }
+
+  studentMaxBtn?.addEventListener("click", () => setMaximized("student", true));
+  studentRestoreBtn?.addEventListener("click", () => setMaximized("student", false));
+
+  // teacher maximize removed (popup is projection-friendly)
+
+  // ---------- Teacher UI render ----------
+  function renderStudents() {
+    if (role !== "teacher") return;
+    if (!studentsEl) return;
+    isRenderingStudents = true;
+    try {
+
+    const listScrollTop = studentsEl.scrollTop;
+    const active = document.activeElement;
+    const hadMemoFocus = active && active.tagName === "INPUT" && active.dataset && active.dataset.memoFor;
+    const hadUrlFocus = active && active.tagName === "INPUT" && active.dataset && active.dataset.urlFor && active.dataset.urlSlot;
+    if (hadMemoFocus) {
+      memoFocusState = {
+        clientId: active.dataset.memoFor,
+        selectionStart: active.selectionStart,
+        selectionEnd: active.selectionEnd,
+        scrollLeft: active.scrollLeft
+      };
+    } else {
+      memoFocusState = null;
+    }
+    if (hadUrlFocus) {
+      urlFocusState = {
+        clientId: active.dataset.urlFor,
+        slot: active.dataset.urlSlot,
+        selectionStart: active.selectionStart,
+        selectionEnd: active.selectionEnd,
+        scrollLeft: active.scrollLeft
+      };
+    } else {
+      urlFocusState = null;
+    }
+
+    studentsEl.innerHTML = "";
+    ensureSeatCapacity(teacherSeatCount);
+    for (let i = 0; i < teacherSeatCount; i++) {
+      const clientId = seatAssignments[i] || null;
+      const seatKey = clientId || `seat_${i + 1}`;
+      const connected = !!clientId;
+      const s = connected ? (teacherState.get(clientId) || { logs: [] }) : {};
+      const d = getSeatDraft(i);
+      const row = document.createElement("div");
+      row.className = "student";
+
+      const head = document.createElement("div");
+      head.className = "student-head";
+
+      const left = document.createElement("div");
+      left.style.display = "flex";
+      left.style.gap = "8px";
+      left.style.alignItems = "baseline";
+
+      const name = document.createElement("span");
+      name.className = "student-name";
+      name.textContent = connected ? (s.name || `受講者${i + 1}`) : `${i + 1}. （未接続）`;
+
+      left.appendChild(name);
+
+      const right = document.createElement("div");
+      right.className = "student-meta";
+      const ago = connected && s.lastSeen ? `${Math.round((Date.now()-s.lastSeen)/1000)}s ago` : "";
+      if (ago) {
+        const agoEl = document.createElement("span");
+        agoEl.className = "muted";
+        agoEl.textContent = ago;
+        right.appendChild(agoEl);
+      }
+
+      const doneTag = document.createElement("span");
+      doneTag.className = "tag " + (s.signal === "done" ? "tag-done-on" : "tag-off");
+      doneTag.textContent = "できました";
+      right.appendChild(doneTag);
+
+      const qTag = document.createElement("span");
+      qTag.className = "tag " + (s.signal === "question" ? "tag-question-on" : "tag-off");
+      qTag.textContent = "質問あり";
+      right.appendChild(qTag);
+
+      head.appendChild(left);
+      head.appendChild(right);
+
+      if (connected) {
+        head.onclick = () => {
+          applyTeacherSelection(clientId, s);
+        };
+      }
+
+      const memo = document.createElement("input");
+      memo.type = "text";
+      memo.className = "memo-input";
+      memo.placeholder = "メモ（講師のみ）例）欠席 / PCトラブル / 質問…";
+      memo.dataset.memoFor = seatKey;
+      memo.value = String(connected ? (s.memo ?? d.memo ?? "") : (d.memo || ""));
+      // フォーカスが外れているときは常に先頭表示に戻す
+      memo.scrollLeft = 0;
+
+      memo.addEventListener("click", (e) => e.stopPropagation());
+      memo.addEventListener("compositionstart", () => { isMemoComposing = true; });
+      memo.addEventListener("compositionend", () => { isMemoComposing = false; });
+      memo.addEventListener("focus", () => {
+        memoFocusState = {
+          clientId: seatKey,
+          selectionStart: memo.selectionStart,
+          selectionEnd: memo.selectionEnd,
+          scrollLeft: memo.scrollLeft
+        };
+      });
+      memo.addEventListener("blur", () => {
+        // 「他の操作に移ったら先頭から見える分だけ」を保証
+        memo.scrollLeft = 0;
+        // 再描画中の blur（要素置換）ではフォーカス復元したいので消さない
+        if (!isRenderingStudents) memoFocusState = null;
+      });
+
+      memo.addEventListener("input", () => {
+        const next = String(memo.value || "").slice(0, 1000); // safety limit
+        if (next !== memo.value) memo.value = next;
+
+        d.memo = next;
+        if (connected) {
+          const cur = teacherState.get(clientId) || { logs: [] };
+          cur.memo = next;
+          teacherState.set(clientId, cur);
+        }
+
+        if (!ws || ws.readyState !== WebSocket.OPEN) return;
+        try { ws.send(JSON.stringify({ type: "seat_plan_update", seatIndex: i, memo: d.memo || "" })); } catch {}
+        if (!connected) return;
+        const prevTimer = memoSendTimers.get(clientId);
+        if (prevTimer) clearTimeout(prevTimer);
+        memoSendTimers.set(clientId, setTimeout(() => {
+          try {
+            ws.send(JSON.stringify({ type: "memo_update", clientId, memo: next }));
+          } catch {}
+        }, 350));
+      });
+
+      const fields = document.createElement("div");
+      fields.className = "student-fields";
+
+      fields.appendChild(memo);
+
+      const url1Wrap = document.createElement("div");
+      url1Wrap.className = "url-edit";
+      const url1Label = document.createElement("span");
+      url1Label.className = "muted";
+      url1Label.textContent = "URL1";
+      const url1 = document.createElement("input");
+      url1.type = "text";
+      url1.className = "url-input";
+      url1.placeholder = "https://...";
+      url1.dataset.urlFor = seatKey;
+      url1.dataset.urlSlot = "url1";
+      url1.value = String(connected ? (s.url1 ?? d.url1 ?? "") : (d.url1 || ""));
+      const url1Open = document.createElement("button");
+      url1Open.textContent = "開く";
+      url1Open.addEventListener("click", (e) => {
+        e.stopPropagation();
+        openUrlInNewTab(url1.value);
+      });
+      url1.addEventListener("click", (e) => e.stopPropagation());
+      url1.addEventListener("compositionstart", () => { isMemoComposing = true; });
+      url1.addEventListener("compositionend", () => { isMemoComposing = false; });
+      url1.addEventListener("focus", () => {
+        urlFocusState = {
+          clientId: seatKey,
+          slot: "url1",
+          selectionStart: url1.selectionStart,
+          selectionEnd: url1.selectionEnd,
+          scrollLeft: url1.scrollLeft
+        };
+      });
+      url1.addEventListener("blur", () => {
+        if (!isRenderingStudents) urlFocusState = null;
+      });
+      url1.addEventListener("input", () => {
+        const next = normalizeUrlValue(url1.value);
+        if (next !== url1.value) url1.value = next;
+        d.url1 = next;
+        if (connected) {
+          const cur = teacherState.get(clientId) || { logs: [] };
+          cur.url1 = next;
+          teacherState.set(clientId, cur);
+        }
+        if (!ws || ws.readyState !== WebSocket.OPEN) return;
+        try { ws.send(JSON.stringify({ type: "seat_plan_update", seatIndex: i, url1: d.url1 || "" })); } catch {}
+        if (!connected) return;
+        const prevTimer = urlSendTimers.get(clientId);
+        if (prevTimer) clearTimeout(prevTimer);
+        urlSendTimers.set(clientId, setTimeout(() => {
+          try {
+            ws.send(JSON.stringify({ type: "url_update", clientId, url1: d.url1 || "", url2: d.url2 || "" }));
+          } catch {}
+        }, 350));
+      });
+      url1Wrap.appendChild(url1Label);
+      url1Wrap.appendChild(url1);
+      url1Wrap.appendChild(url1Open);
+
+      const url2Wrap = document.createElement("div");
+      url2Wrap.className = "url-edit";
+      const url2Label = document.createElement("span");
+      url2Label.className = "muted";
+      url2Label.textContent = "URL2";
+      const url2 = document.createElement("input");
+      url2.type = "text";
+      url2.className = "url-input";
+      url2.placeholder = "https://...";
+      url2.dataset.urlFor = seatKey;
+      url2.dataset.urlSlot = "url2";
+      url2.value = String(connected ? (s.url2 ?? d.url2 ?? "") : (d.url2 || ""));
+      const url2Open = document.createElement("button");
+      url2Open.textContent = "開く";
+      url2Open.addEventListener("click", (e) => {
+        e.stopPropagation();
+        openUrlInNewTab(url2.value);
+      });
+      url2.addEventListener("click", (e) => e.stopPropagation());
+      url2.addEventListener("compositionstart", () => { isMemoComposing = true; });
+      url2.addEventListener("compositionend", () => { isMemoComposing = false; });
+      url2.addEventListener("focus", () => {
+        urlFocusState = {
+          clientId: seatKey,
+          slot: "url2",
+          selectionStart: url2.selectionStart,
+          selectionEnd: url2.selectionEnd,
+          scrollLeft: url2.scrollLeft
+        };
+      });
+      url2.addEventListener("blur", () => {
+        if (!isRenderingStudents) urlFocusState = null;
+      });
+      url2.addEventListener("input", () => {
+        const next = normalizeUrlValue(url2.value);
+        if (next !== url2.value) url2.value = next;
+        d.url2 = next;
+        if (connected) {
+          const cur = teacherState.get(clientId) || { logs: [] };
+          cur.url2 = next;
+          teacherState.set(clientId, cur);
+        }
+        if (!ws || ws.readyState !== WebSocket.OPEN) return;
+        try { ws.send(JSON.stringify({ type: "seat_plan_update", seatIndex: i, url2: d.url2 || "" })); } catch {}
+        if (!connected) return;
+        const prevTimer = urlSendTimers.get(clientId);
+        if (prevTimer) clearTimeout(prevTimer);
+        urlSendTimers.set(clientId, setTimeout(() => {
+          try {
+            ws.send(JSON.stringify({ type: "url_update", clientId, url1: d.url1 || "", url2: d.url2 || "" }));
+          } catch {}
+        }, 350));
+      });
+      url2Wrap.appendChild(url2Label);
+      url2Wrap.appendChild(url2);
+      url2Wrap.appendChild(url2Open);
+
+      fields.appendChild(url1Wrap);
+      fields.appendChild(url2Wrap);
+
+      row.appendChild(head);
+      row.appendChild(fields);
+      studentsEl.appendChild(row);
+    }
+
+    studentsEl.scrollTop = listScrollTop;
+    if (memoFocusState && memoFocusState.clientId) {
+      const el = studentsEl.querySelector(`input[data-memo-for="${memoFocusState.clientId}"]`);
+      if (el) {
+        el.focus();
+        try { el.setSelectionRange(memoFocusState.selectionStart, memoFocusState.selectionEnd); } catch {}
+        el.scrollLeft = memoFocusState.scrollLeft || 0;
+      }
+    }
+    if (urlFocusState && urlFocusState.clientId && urlFocusState.slot) {
+      const el = studentsEl.querySelector(`input[data-url-for="${urlFocusState.clientId}"][data-url-slot="${urlFocusState.slot}"]`);
+      if (el) {
+        el.focus();
+        try { el.setSelectionRange(urlFocusState.selectionStart, urlFocusState.selectionEnd); } catch {}
+        el.scrollLeft = urlFocusState.scrollLeft || 0;
+      }
+    }
+    } finally {
+      isRenderingStudents = false;
+    }
+  }
+
+  // ---------- WS connect ----------
+  let reconnectTimer = null;
+  let reconnectAttempts = 0;
+  function scheduleReconnect() {
+    if (reconnectTimer) return;
+    const delay = Math.min(10000, 1000 * Math.pow(1.7, reconnectAttempts));
+    reconnectAttempts += 1;
+    setStatus(`Disconnected... reconnecting (${Math.round(delay)}ms)`);
+    reconnectTimer = setTimeout(() => {
+      reconnectTimer = null;
+      connect();
+    }, delay);
+  }
+  function connect() {
+    // Avoid spawning multiple sockets.
+    if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
+    const room = (roomEl.value || "demo").trim();
+    let name = "Teacher";
+    if (role === "teacher") {
+      const count = normalizeSeatCount(nameEl?.value || localStorage.getItem("seminar_seat_count") || "20");
+      if (nameEl) nameEl.value = String(count);
+      setTeacherSeatCount(count);
+    } else {
+      if (nameEl) nameEl.value = filterDisplayName(nameEl.value);
+      name = (nameEl.value || "").trim() || "Student";
+    }
+    localStorage.setItem("seminar_room", room);
+    if (role === "student") localStorage.setItem("seminar_name", name);
+
+    // QR link update
+    if (qrLink) qrLink.href = `/qr.html?room=${encodeURIComponent(room)}`;
+
+    const wsProto = location.protocol === "https:" ? "wss:" : "ws:";
+    ws = new WebSocket(`${wsProto}//${location.host}`);
+    setStatus("Connecting...");
+
+    ws.onopen = () => {
+      setStatus("Connected");
+      reconnectAttempts = 0;
+      if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+      ws.send(JSON.stringify({
+        type: "join",
+        role,
+        room,
+        name,
+        clientId: role === "student" ? clientId : null
+      }));
+      if (role === "teacher") {
+        ws.send(JSON.stringify({ type: "seat_plan_update", count: teacherSeatCount }));
+      }
+      if (role === "student") {
+        ws.send(JSON.stringify({ type: "code_update", code: codeEl.value || "" }));
+        setStudentSignal(""); // reset on connect
+      }
+    };
+
+    ws.onmessage = (ev) => {
+      let msg;
+      try { msg = JSON.parse(ev.data); } catch { return; }
+
+      if (msg.type === "room_state") {
+        roomNameLocked = !!msg.nameLock;
+        applyNameLock();
+        if (role === "teacher" && teacherLockName) {
+          teacherLockName.checked = !!roomNameLocked;
+        }
+        return;
+      }
+
+      if (msg.type === "resources_state") {
+        roomResources = Array.isArray(msg.resources) ? msg.resources : [];
+        // teacher can edit; others view only
+        if (resourcesEditBtn) resourcesEditBtn.style.display = (role === "teacher" && !resourcesEditMode) ? "inline-block" : "none";
+        if (!resourcesEditMode) renderResourcesView();
+        return;
+      }
+
+      if (msg.type === "seat_plan_state" && role === "teacher") {
+        applySeatPlanState(msg);
+        return;
+      }
+
+      if (msg.type === "teacher_message_state") {
+        const m = String(msg.message || "");
+        applyTeacherMessageUI(m);
+        if (role === "teacher" && teacherMsgInput && document.activeElement !== teacherMsgInput) {
+          teacherMsgInput.value = m;
+        }
+        return;
+      }
+
+      if (msg.type === "name_update_rejected" && role === "student") {
+        if (msg.reason === "locked") {
+          roomNameLocked = true;
+          applyNameLock();
+          appendLog("[warn] 講師が名前変更を禁止中のため、名前変更は反映されませんでした。");
+        }
+        return;
+      }
+
+      if (msg.type === "name_assigned" && role === "student") {
+        const assigned = filterDisplayName(msg.name || "");
+        if (assigned) {
+          if (nameEl) nameEl.value = assigned;
+          localStorage.setItem("seminar_name", assigned);
+          appendLog(`[info] 同名がいたため、名前を「${assigned}」に調整しました。`);
+        }
+        return;
+      }
+
+      if (msg.type === "force_code" && role === "student") {
+        const code = String(msg.code || "");
+        codeEl.value = code;
+        // share to teacher (programmatic set doesn't trigger input event)
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ type: "code_update", code, programName: getProgramNameSafe() }));
+        }
+        appendLog("[info] 講師がコードを書き戻しました（自動実行はしません）");
+        return;
+      }
+
+      if (msg.type === "url_update" && role === "student") {
+        applyStudentUrlState(msg.url1 || "", msg.url2 || "");
+        return;
+      }
+
+      if (role === "teacher") {
+        if (msg.type === "force_code_result") {
+          if (writebackPendingTimer) { clearTimeout(writebackPendingTimer); writebackPendingTimer = null; }
+          if (teacherWritebackSendBtn) teacherWritebackSendBtn.disabled = false;
+          if (msg.ok) {
+            setTeacherWritebackOpen(false);
+            writebackTargetId = null;
+          } else {
+            const reason = msg.reason || "unknown";
+            alert(`書き戻しに失敗しました: ${reason}`);
+          }
+        }
+        if (msg.type === "snapshot") {
+          teacherState.clear();
+          (msg.students || []).forEach(s => teacherState.set(s.clientId, s));
+          if (!seatAssignments.some(Boolean)) rebuildSeatAssignmentsFromState();
+          scheduleRenderStudents();
+        }
+        if (msg.type === "program_update") {
+          assignClientToSeat(msg.clientId);
+          const s = teacherState.get(msg.clientId) || { logs: [] };
+          s.programName = msg.programName || "";
+          s.lastSeen = msg.lastSeen || s.lastSeen;
+          teacherState.set(msg.clientId, s);
+          scheduleRenderStudents();
+        }
+        if (msg.type === "signal_update") {
+          assignClientToSeat(msg.clientId);
+          const s = teacherState.get(msg.clientId) || { logs: [] };
+          s.signal = msg.signal || "";
+          s.lastSeen = msg.lastSeen || s.lastSeen;
+          teacherState.set(msg.clientId, s);
+          scheduleRenderStudents();
+        }
+        if (msg.type === "memo_update") {
+          const idx = assignClientToSeat(msg.clientId);
+          const s = teacherState.get(msg.clientId) || { logs: [] };
+          s.memo = String(msg.memo || "");
+          teacherState.set(msg.clientId, s);
+          if (idx >= 0) getSeatDraft(idx).memo = s.memo || "";
+          scheduleRenderStudents();
+        }
+        if (msg.type === "name_update") {
+          assignClientToSeat(msg.clientId);
+          const s = teacherState.get(msg.clientId) || { logs: [] };
+          s.name = msg.name;
+          s.lastSeen = msg.lastSeen;
+          teacherState.set(msg.clientId, s);
+          scheduleRenderStudents();
+        }
+        if (msg.type === "student_joined") {
+          teacherState.set(msg.clientId, { name: msg.name, code: "", logs: [], memo: "", programName: "", url1: msg.url1 || "", url2: msg.url2 || "", lastSeen: msg.lastSeen });
+          assignClientToSeat(msg.clientId, Number.isInteger(msg.seatIndex) ? msg.seatIndex : -1);
+          scheduleRenderStudents();
+        }
+        if (msg.type === "student_left") {
+          assignClientToSeat(msg.clientId);
+          const s = teacherState.get(msg.clientId) || {};
+          s.lastSeen = msg.lastSeen;
+          teacherState.set(msg.clientId, s);
+          scheduleRenderStudents();
+        }
+        if (msg.type === "code_update") {
+          assignClientToSeat(msg.clientId);
+          const s = teacherState.get(msg.clientId) || { logs: [] };
+          s.name = msg.name;
+          s.code = msg.code;
+          s.programName = msg.programName || s.programName || "";
+          s.lastSeen = msg.lastSeen;
+          teacherState.set(msg.clientId, s);
+
+          if (selectedStudentId === msg.clientId) {
+            teacherCodeEl.value = msg.code || "";
+            if (teacherProgramName) {
+              teacherProgramName.textContent = s.programName ? `プログラム名: ${s.programName}` : "";
+            }
+          }
+          scheduleRenderStudents();
+        }
+        if (msg.type === "url_update") {
+          const idx = assignClientToSeat(msg.clientId);
+          const s = teacherState.get(msg.clientId) || { logs: [] };
+          s.url1 = msg.url1 || "";
+          s.url2 = msg.url2 || "";
+          s.lastSeen = msg.lastSeen || s.lastSeen;
+          teacherState.set(msg.clientId, s);
+          if (idx >= 0) {
+            const d = getSeatDraft(idx);
+            d.url1 = s.url1 || "";
+            d.url2 = s.url2 || "";
+          }
+          scheduleRenderStudents();
+        }
+        if (msg.type === "log") {
+          assignClientToSeat(msg.clientId);
+          const s = teacherState.get(msg.clientId) || { logs: [] };
+          s.name = msg.name;
+          s.logs = (s.logs || []).slice(-400);
+          s.logs.push(msg.line);
+          s.lastSeen = msg.lastSeen;
+          teacherState.set(msg.clientId, s);
+        
+          const showAll = teacherShowAllLogs?.checked;
+        
+          if (showAll) {
+            // 全員分を流す（誰のログか分かるように名前を付ける）
+            appendLog(`[${s.name || "Student"}] ${msg.line}`);
+          } else {
+            // 選択者のみ表示（従来仕様）
+            if (selectedStudentId === msg.clientId) appendLog(msg.line);
+          }
+        
+          scheduleRenderStudents();
+        }
+        if (msg.type === "clear_logs") {
+          assignClientToSeat(msg.clientId);
+          const s = teacherState.get(msg.clientId);
+          if (s) {
+            s.logs = [];
+            s.lastSeen = msg.lastSeen;
+            teacherState.set(msg.clientId, s);
+        
+            const showAll = teacherShowAllLogs?.checked;
+        
+            if (showAll) {
+              appendLog(`[${s.name || "Student"}] (logs cleared)`);
+            } else {
+              if (selectedStudentId === msg.clientId) clearLogsUI();
+            }
+        
+            scheduleRenderStudents();
+          }
+        }
+      }
+    };
+
+    ws.onclose = () => scheduleReconnect();
+    ws.onerror = () => scheduleReconnect();
+  }
+
+  connectBtn.addEventListener("click", () => connect());
+  connect();
+</script>
+</body>
+</html>
