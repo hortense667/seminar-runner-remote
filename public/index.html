@@ -1727,10 +1727,6 @@ ${safeCode}
         const h0 = String(rows[0]?.[0] || "").toLowerCase().replace(/\s+/g, "");
         const h1 = String(rows[0]?.[1] || "").toLowerCase().replace(/\s+/g, "");
         if (h0 === "url1" && h1 === "url2") rows = rows.slice(1);
-        if (rows.length !== teacherSeatCount) {
-          alert(`CSVの行数（${rows.length}）と人数（${teacherSeatCount}）が一致しません。人数を合わせてからアップロードしてください。`);
-          return;
-        }
 
         let changed = 0;
         for (let i = 0; i < teacherSeatCount; i++) {
@@ -2092,7 +2088,21 @@ ${safeCode}
   }
 
   // ---------- WS connect ----------
+  let reconnectTimer = null;
+  let reconnectAttempts = 0;
+  function scheduleReconnect() {
+    if (reconnectTimer) return;
+    const delay = Math.min(10000, 1000 * Math.pow(1.7, reconnectAttempts));
+    reconnectAttempts += 1;
+    setStatus(`Disconnected... reconnecting (${Math.round(delay)}ms)`);
+    reconnectTimer = setTimeout(() => {
+      reconnectTimer = null;
+      connect();
+    }, delay);
+  }
   function connect() {
+    // Avoid spawning multiple sockets.
+    if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
     const room = (roomEl.value || "demo").trim();
     let name = "Teacher";
     if (role === "teacher") {
@@ -2115,6 +2125,8 @@ ${safeCode}
 
     ws.onopen = () => {
       setStatus("Connected");
+      reconnectAttempts = 0;
+      if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
       ws.send(JSON.stringify({
         type: "join",
         role,
@@ -2337,8 +2349,8 @@ ${safeCode}
       }
     };
 
-    ws.onclose = () => setStatus("Disconnected");
-    ws.onerror = () => setStatus("Error");
+    ws.onclose = () => scheduleReconnect();
+    ws.onerror = () => scheduleReconnect();
   }
 
   connectBtn.addEventListener("click", () => connect());
