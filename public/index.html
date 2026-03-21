@@ -667,6 +667,14 @@ console.log('hello');"></textarea>
     if (teacherLogsEl) teacherLogsEl.textContent = "";
   }
 
+  function tsNow() {
+    const d = new Date();
+    const hh = String(d.getHours()).padStart(2, "0");
+    const mm = String(d.getMinutes()).padStart(2, "0");
+    const ss = String(d.getSeconds()).padStart(2, "0");
+    return `${hh}:${mm}:${ss}`;
+  }
+
   function openUrlInNewTab(raw) {
     const url = toOpenableUrl(raw);
     if (!url) return;
@@ -2294,6 +2302,7 @@ ${safeCode}
       setStatus("Connected");
       reconnectAttempts = 0;
       if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+      if (role === "teacher") appendLog(`[sys ${tsNow()}] connected room=${room}`);
       ws.send(JSON.stringify({
         type: "join",
         role,
@@ -2397,6 +2406,7 @@ ${safeCode}
           teacherState.clear();
           (msg.students || []).forEach(s => teacherState.set(s.clientId, s));
           if (!seatAssignments.some(Boolean)) rebuildSeatAssignmentsFromState();
+          appendLog(`[join ${tsNow()}] snapshot room=${roomEl?.value || ""} students=${(msg.students || []).length}`);
           scheduleRenderStudents();
         }
         if (msg.type === "program_update") {
@@ -2434,6 +2444,8 @@ ${safeCode}
         if (msg.type === "student_joined") {
           teacherState.set(msg.clientId, { name: msg.name, code: "", logs: [], memo: "", programName: "", url1: msg.url1 || "", url2: msg.url2 || "", lastSeen: msg.lastSeen });
           assignClientToSeat(msg.clientId, Number.isInteger(msg.seatIndex) ? msg.seatIndex : -1);
+          const seatLabel = Number.isInteger(msg.seatIndex) ? String(msg.seatIndex + 1) : "?";
+          appendLog(`[join ${tsNow()}] room=${roomEl?.value || ""} seat=${seatLabel} name=${msg.name || ""} id=${msg.clientId || ""}`);
           scheduleRenderStudents();
         }
         if (msg.type === "student_left") {
@@ -2441,6 +2453,7 @@ ${safeCode}
           const s = teacherState.get(msg.clientId) || {};
           s.lastSeen = msg.lastSeen;
           teacherState.set(msg.clientId, s);
+          appendLog(`[left ${tsNow()}] room=${roomEl?.value || ""} name=${s.name || ""} id=${msg.clientId || ""}`);
           scheduleRenderStudents();
         }
         if (msg.type === "code_update") {
@@ -2520,10 +2533,12 @@ ${safeCode}
     ws.onclose = () => {
       if (connectId !== activeConnectId) return;
       ws = null;
+      if (role === "teacher") appendLog(`[sys ${tsNow()}] disconnected room=${activeRoom || roomEl?.value || ""}`);
       scheduleReconnect();
     };
     ws.onerror = () => {
       if (connectId !== activeConnectId) return;
+      if (role === "teacher") appendLog(`[sys ${tsNow()}] websocket error room=${activeRoom || roomEl?.value || ""}`);
       scheduleReconnect();
     };
   }
