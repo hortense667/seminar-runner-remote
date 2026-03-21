@@ -278,6 +278,7 @@
     <button class="soft" id="studentResourcesBtn" title="関係資料">関係資料</button>
   </span>
   <span class="row" id="teacherControlsWrap" style="margin-left:auto;display:none;">
+    <button id="teacherAllRoomsBulkDlBtn">全ルーム一括DL</button>
     <input class="teacher-msg-input" id="teacherMsgInput" placeholder="受講者へメッセージ（例: 5分休憩 / 〇〇に進んでください）" />
     <button class="soft" id="teacherMsgSendBtn">送信</button>
     <label class="muted" style="display:flex;gap:6px;align-items:center;">
@@ -459,6 +460,7 @@ console.log('hello');"></textarea>
   const studentUrl2Btn = document.getElementById("studentUrl2Btn");
   const studentResourcesBtn = document.getElementById("studentResourcesBtn");
   const teacherControlsWrap = document.getElementById("teacherControlsWrap");
+  const teacherAllRoomsBulkDlBtn = document.getElementById("teacherAllRoomsBulkDlBtn");
   const teacherMsgInput = document.getElementById("teacherMsgInput");
   const teacherMsgSendBtn = document.getElementById("teacherMsgSendBtn");
 
@@ -1636,6 +1638,59 @@ ${safeCode}
       appendLog(`[info] 全員分HTMLを一括ダウンロードしました（${added}件）。`);
     } catch (e) {
       alert(`一括ダウンロードに失敗しました: ${String(e?.message || e)}`);
+    }
+  });
+
+  teacherAllRoomsBulkDlBtn?.addEventListener("click", async () => {
+    if (role !== "teacher") return;
+    try {
+      const res = await fetch("/api/export_all_rooms", { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const payload = await res.json();
+      const roomList = Array.isArray(payload?.rooms) ? payload.rooms : [];
+      const JSZip = await loadJsZip();
+      if (!JSZip) throw new Error("JSZipが利用できません。");
+      const zip = new JSZip();
+      let added = 0;
+
+      for (const roomItem of roomList) {
+        const roomRaw = String(roomItem?.room || "room");
+        const room = sanitizeForFilename(roomRaw) || "room";
+        const folder = zip.folder(room);
+        if (!folder) continue;
+        const students = Array.isArray(roomItem?.students) ? roomItem.students : [];
+        const usedNames = new Map();
+        students.sort((a, b) => (Number(b?.lastSeen || 0) - Number(a?.lastSeen || 0)));
+        for (const s of students) {
+          const code = String(s?.code || "");
+          if (!code.trim()) continue;
+          const p = filterDisplayName(s?.programName || "") || "program";
+          const n = filterDisplayName(s?.name || "") || "Student";
+          const base = sanitizeForFilename(`${p}(${n})(${roomRaw})`);
+          const seen = usedNames.get(base) || 0;
+          usedNames.set(base, seen + 1);
+          const suffix = seen > 0 ? `_${seen + 1}` : "";
+          const fname = `${base}${suffix}.html`;
+          folder.file(fname, buildHtmlFromCode(code, base));
+          added += 1;
+        }
+      }
+
+      if (!added) {
+        alert("全ルームにダウンロード対象のコードがありません。");
+        return;
+      }
+
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `all_rooms_students_${timestampForFilename()}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+      appendLog(`[info] 全ルーム一括ダウンロードしました（${added}件）。`);
+    } catch (e) {
+      alert(`全ルーム一括ダウンロードに失敗しました: ${String(e?.message || e)}`);
     }
   });
 
