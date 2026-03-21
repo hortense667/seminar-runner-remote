@@ -568,7 +568,7 @@ console.log('hello');"></textarea>
   }
 
   // remember last room/name
-  roomEl.value = localStorage.getItem("seminar_room") || roomEl.value;
+  roomEl.value = (qs.get("room") || "").trim() || localStorage.getItem("seminar_room") || roomEl.value;
   if (role === "teacher") {
     nameEl.value = String(Math.max(1, Number(localStorage.getItem("seminar_seat_count") || nameEl.value || "20") || 20));
   } else {
@@ -593,6 +593,8 @@ console.log('hello');"></textarea>
   themeSelect?.addEventListener("change", () => applyTheme(themeSelect.value));
 
   let ws = null;
+  let activeConnectId = 0;
+  let activeRoom = "";
   let selectedStudentId = null;
   const teacherState = new Map(); // clientId -> {name, code, logs, lastSeen}
   let roomNameLocked = false;
@@ -2229,10 +2231,30 @@ ${safeCode}
       connect();
     }, delay);
   }
+
+  function updateRoomInUrl(room) {
+    try {
+      const u = new URL(location.href);
+      u.searchParams.set("role", role);
+      u.searchParams.set("room", room);
+      history.replaceState(null, "", u.toString());
+    } catch {}
+  }
+
+  function closeSocketSilently() {
+    if (!ws) return;
+    try {
+      ws.onopen = null;
+      ws.onmessage = null;
+      ws.onclose = null;
+      ws.onerror = null;
+      if (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING) ws.close();
+    } catch {}
+    ws = null;
+  }
   function connect() {
-    // Avoid spawning multiple sockets.
-    if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
     const room = (roomEl.value || "demo").trim();
+    if (!room) return;
     let name = "Teacher";
     if (role === "teacher") {
       const count = normalizeSeatCount(nameEl?.value || localStorage.getItem("seminar_seat_count") || "20");
@@ -2244,15 +2266,31 @@ ${safeCode}
     }
     localStorage.setItem("seminar_room", room);
     if (role === "student") localStorage.setItem("seminar_name", name);
+    updateRoomInUrl(room);
 
     // QR link update
     if (qrLink) qrLink.href = `/qr.html?room=${encodeURIComponent(room)}`;
+
+    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+    const roomChanged = activeRoom && activeRoom !== room;
+    activeRoom = room;
+    closeSocketSilently();
+    const connectId = ++activeConnectId;
+    if (role === "teacher" && roomChanged) {
+      teacherState.clear();
+      selectedStudentId = null;
+      teacherCodeEl.value = "";
+      if (teacherProgramName) teacherProgramName.textContent = "";
+      clearLogsUI();
+      scheduleRenderStudents();
+    }
 
     const wsProto = location.protocol === "https:" ? "wss:" : "ws:";
     ws = new WebSocket(`${wsProto}//${location.host}`);
     setStatus("Connecting...");
 
     ws.onopen = () => {
+      if (connectId !== activeConnectId) return;
       setStatus("Connected");
       reconnectAttempts = 0;
       if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
@@ -2273,6 +2311,7 @@ ${safeCode}
     };
 
     ws.onmessage = (ev) => {
+      if (connectId !== activeConnectId) return;
       let msg;
       try { msg = JSON.parse(ev.data); } catch { return; }
 
@@ -2478,8 +2517,15 @@ ${safeCode}
       }
     };
 
-    ws.onclose = () => scheduleReconnect();
-    ws.onerror = () => scheduleReconnect();
+    ws.onclose = () => {
+      if (connectId !== activeConnectId) return;
+      ws = null;
+      scheduleReconnect();
+    };
+    ws.onerror = () => {
+      if (connectId !== activeConnectId) return;
+      scheduleReconnect();
+    };
   }
 
   connectBtn.addEventListener("click", () => connect());
