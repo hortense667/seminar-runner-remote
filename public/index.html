@@ -349,6 +349,7 @@ console.log('hello');"></textarea>
           <span class="muted teacher-info" id="teacherProgramName"></span>
           <button id="teacherCopyBtn">コードをコピー</button>
           <button id="teacherDlBtn">HTMLでDL</button>
+          <button id="teacherBulkDlBtn">全員分HTML一括DL</button>
           <button id="teacherImportBtn">HTML読み込み</button>
           <input id="teacherImportFile" type="file" accept=".html,text/html" style="display:none;" />
           <button id="teacherRunPopupBtn">別タブで実行</button>
@@ -500,6 +501,7 @@ console.log('hello');"></textarea>
   const teacherCodeEl = document.getElementById("teacherCode");
   const teacherCopyBtn = document.getElementById("teacherCopyBtn");
   const teacherDlBtn = document.getElementById("teacherDlBtn");
+  const teacherBulkDlBtn = document.getElementById("teacherBulkDlBtn");
   const teacherImportBtn = document.getElementById("teacherImportBtn");
   const teacherImportFile = document.getElementById("teacherImportFile");
   const teacherRunPopupBtn = document.getElementById("teacherRunPopupBtn");
@@ -1527,17 +1529,36 @@ ${code}
   });
 
 // ---------- Teacher: download HTML from selected student's code ----------
-  function downloadHtmlFromCode(code, filenameBase = "student_code") {
-    const safe = sanitizeForFilename(filenameBase || "student_code");
+  let jsZipLoadPromise = null;
+
+  function loadJsZip() {
+    if (window.JSZip) return Promise.resolve(window.JSZip);
+    if (jsZipLoadPromise) return jsZipLoadPromise;
+    jsZipLoadPromise = new Promise((resolve, reject) => {
+      const s = document.createElement("script");
+      s.src = "https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js";
+      s.onload = () => resolve(window.JSZip);
+      s.onerror = () => reject(new Error("JSZipの読み込みに失敗しました。"));
+      document.head.appendChild(s);
+    });
+    return jsZipLoadPromise;
+  }
+
+  function buildHtmlFromCode(code, title) {
     const normalized = stripJsCodeFence(code || "");
     const safeCode = String(normalized).replace(/<\/script>/gi, "<\\/script>");
-    const html = `<!doctype html><html lang="ja"><meta charset="utf-8">
-<title>${safe}</title>
+    return `<!doctype html><html lang="ja"><meta charset="utf-8">
+<title>${title}</title>
 <body>
 <script>
 ${safeCode}
 <\/script>
 </body></html>`;
+  }
+
+  function downloadHtmlFromCode(code, filenameBase = "student_code") {
+    const safe = sanitizeForFilename(filenameBase || "student_code");
+    const html = buildHtmlFromCode(code, safe);
     const blob = new Blob([html], { type: "text/html" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -1563,6 +1584,59 @@ ${safeCode}
     const r = (roomEl?.value || "demo").trim() || "demo";
     const base = `${p}(${n})(${r})${timestampForFilename()}`;
     downloadHtmlFromCode(code, base);
+  });
+
+  teacherBulkDlBtn?.addEventListener("click", async () => {
+    if (role !== "teacher") return;
+    try {
+      const JSZip = await loadJsZip();
+      if (!JSZip) throw new Error("JSZipが利用できません。");
+      const zip = new JSZip();
+      const room = (roomEl?.value || "demo").trim() || "demo";
+      const usedNames = new Map();
+      let added = 0;
+
+      const orderedIds = [];
+      for (let i = 0; i < teacherSeatCount; i++) {
+        const cid = seatAssignments[i];
+        if (cid) orderedIds.push(cid);
+      }
+      for (const cid of teacherState.keys()) {
+        if (!orderedIds.includes(cid)) orderedIds.push(cid);
+      }
+
+      for (const cid of orderedIds) {
+        const s = teacherState.get(cid) || {};
+        const code = String(s.code || "");
+        if (!code.trim()) continue;
+        const p = filterDisplayName(s.programName || "") || "program";
+        const n = filterDisplayName(s.name || "") || "Student";
+        const base = sanitizeForFilename(`${p}(${n})(${room})`);
+        const seen = usedNames.get(base) || 0;
+        usedNames.set(base, seen + 1);
+        const suffix = seen > 0 ? `_${seen + 1}` : "";
+        const fname = `${base}${suffix}.html`;
+        const html = buildHtmlFromCode(code, base);
+        zip.file(fname, html);
+        added += 1;
+      }
+
+      if (!added) {
+        alert("ダウンロード対象のコードがありません。");
+        return;
+      }
+
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `all_students_${sanitizeForFilename(room)}_${timestampForFilename()}.zip`;
+      a.click();
+      URL.revokeObjectURL(url);
+      appendLog(`[info] 全員分HTMLを一括ダウンロードしました（${added}件）。`);
+    } catch (e) {
+      alert(`一括ダウンロードに失敗しました: ${String(e?.message || e)}`);
+    }
   });
 
   teacherImportBtn?.addEventListener("click", () => {
