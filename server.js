@@ -46,6 +46,29 @@ app.get("/api/users_guide", async (req, res) => {
   }
 });
 
+/**
+ * Export all rooms' student programs (for teacher bulk download)
+ * GET /api/export_all_rooms
+ */
+app.get("/api/export_all_rooms", (req, res) => {
+  try {
+    const all = [];
+    for (const [roomId, room] of rooms.entries()) {
+      const students = [...room.students.entries()].map(([clientId, s]) => ({
+        clientId,
+        name: s.name || "",
+        programName: s.programName || "",
+        code: s.code || "",
+        lastSeen: s.lastSeen || 0
+      }));
+      all.push({ room: roomId, students });
+    }
+    res.json({ rooms: all });
+  } catch (e) {
+    res.status(500).json({ error: String(e?.message || e) });
+  }
+});
+
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
