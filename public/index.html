@@ -199,6 +199,7 @@
     #students { max-height: 300px; overflow:auto; }
     .teacher-roster-hint { font-size: 12px; margin: 0 0 8px 0; line-height: 1.4; color: var(--muted); }
     .student { padding: 6px 8px; border-bottom: 1px solid var(--border); display:flex; align-items:center; gap:8px; overflow:hidden; }
+    .student.student-row-selected { background: color-mix(in srgb, var(--link) 22%, var(--panel)); }
     .student-head { flex: 0 0 268px; min-width: 268px; display:flex; justify-content:space-between; align-items:baseline; gap:10px; cursor: pointer; margin-bottom: 0; overflow:hidden; }
     .teacher-seat-no { flex: 0 0 auto; min-width: 1.25em; text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; font-size: 13px; color: var(--muted); }
     .student-name { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -669,6 +670,7 @@ console.log('hello');"></textarea>
     if (teacherProgramName) {
       teacherProgramName.textContent = s.programName ? `プログラム名: ${s.programName}` : "";
     }
+    scheduleRenderStudents();
   }
 
   function setStatus(txt) { statusEl.textContent = txt; }
@@ -2006,6 +2008,9 @@ ${safeCode}
       const d = getSeatDraft(i);
       const row = document.createElement("div");
       row.className = "student";
+      if (connected && selectedStudentId && clientId === selectedStudentId) {
+        row.classList.add("student-row-selected");
+      }
 
       const head = document.createElement("div");
       head.className = "student-head";
