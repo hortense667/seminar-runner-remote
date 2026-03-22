@@ -196,16 +196,18 @@
     .row { display:flex; gap:8px; align-items:center; flex-wrap: wrap;}
     .muted { color: var(--muted); font-size: 12px; }
     #logs { white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; line-height: 1.35; max-height: 420px; overflow:auto; }
-    #students { max-height: 320px; overflow:auto; }
+    #students { max-height: 300px; overflow:auto; }
+    .teacher-roster-hint { font-size: 12px; margin: 0 0 8px 0; line-height: 1.4; color: var(--muted); }
     .student { padding: 6px 8px; border-bottom: 1px solid var(--border); display:flex; align-items:center; gap:8px; overflow:hidden; }
-    .student-head { flex: 0 0 240px; min-width: 240px; display:flex; justify-content:space-between; align-items:baseline; gap:10px; cursor: pointer; margin-bottom: 0; overflow:hidden; }
-    .student-name { font-weight: 600; }
+    .student-head { flex: 0 0 268px; min-width: 268px; display:flex; justify-content:space-between; align-items:baseline; gap:10px; cursor: pointer; margin-bottom: 0; overflow:hidden; }
+    .teacher-seat-no { flex: 0 0 auto; min-width: 1.25em; text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; font-size: 13px; color: var(--muted); }
+    .student-name { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .student-meta { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
     .student-id { font-size: 11px; color: var(--muted); }
-    .memo-input { width: auto; min-width: 120px; flex: 1 1 0; box-sizing:border-box; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; padding: 6px 8px; border:1px solid var(--border); border-radius:8px; background: var(--panel); color: var(--text); height: 30px; }
+    .memo-input { width: auto; min-width: 100px; flex: 1 1 80px; box-sizing:border-box; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; padding: 6px 8px; border:1px solid var(--border); border-radius:8px; background: var(--panel); color: var(--text); height: 30px; }
     .student-fields { flex: 1 1 auto; min-width: 0; display:flex; gap:6px; align-items:center; flex-wrap:nowrap; overflow:hidden; }
-    .url-edit { display:flex; gap:6px; align-items:center; min-width: 0; flex: 1 1 0; overflow:hidden; }
-    .url-input { width: 100%; min-width: 120px; box-sizing:border-box; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; padding: 6px 8px; border:1px solid var(--border); border-radius:8px; background: var(--panel); color: var(--text); height: 30px; }
+    .url-edit { display:flex; gap:6px; align-items:center; min-width: 0; flex: 0 1 120px; max-width: 132px; overflow:hidden; }
+    .url-input { width: 100%; min-width: 0; box-sizing:border-box; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; padding: 6px 8px; border:1px solid var(--border); border-radius:8px; background: var(--panel); color: var(--text); height: 30px; }
     .url-edit button { white-space: nowrap; flex: 0 0 auto; padding: 6px 8px; }
     .tag { font-size: 11px; padding: 2px 6px; border: 1px solid var(--tag-off-border); border-radius: 999px; }
     .tag-off { background: var(--tag-off-bg); border-color: var(--tag-off-border); color: var(--tag-off-text); }
@@ -346,7 +348,10 @@ console.log('hello');"></textarea>
               <button id="teacherDownloadRosterBtn">受講者一覧ダウンロード</button>
             </div>
           </div>
-          <div class="content" id="students"></div>
+          <div class="content" style="padding-top:8px;">
+            <p class="teacher-roster-hint">左端の数字は、受講者ヘッダの<strong style="color:var(--text);font-weight:600;">出席番号</strong>と同じ番号です（1始まり・席の並び順どおり）。</p>
+            <div id="students"></div>
+          </div>
         </div>
         <input id="teacherUploadUrlListFile" type="file" accept=".csv,text/csv" style="display:none;" />
 
@@ -2009,11 +2014,20 @@ ${safeCode}
       left.style.display = "flex";
       left.style.gap = "8px";
       left.style.alignItems = "baseline";
+      left.style.minWidth = "0";
+      left.style.flex = "1";
+
+      const seatNo = document.createElement("span");
+      seatNo.className = "teacher-seat-no";
+      const attendanceNo = i + 1;
+      seatNo.textContent = String(attendanceNo);
+      seatNo.setAttribute("aria-label", `出席番号 ${attendanceNo}`);
 
       const name = document.createElement("span");
       name.className = "student-name";
-      name.textContent = connected ? (s.name || `受講者${i + 1}`) : `${i + 1}. （未接続）`;
+      name.textContent = connected ? (s.name || "（名前なし）") : "（未接続）";
 
+      left.appendChild(seatNo);
       left.appendChild(name);
 
       const right = document.createElement("div");
