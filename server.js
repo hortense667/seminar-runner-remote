@@ -145,8 +145,37 @@ function assignSeatForClient(room, clientId) {
   return idx;
 }
 
+/** Drop seat clientIds that have no matching room.students entry (TTL ghosts, clear_room, bad persist). Clears memo/urls for that seat — no live student, so notes/links are stale. */
+function pruneOrphanSeatClients(room) {
+  ensureSeatPlan(room);
+  let touched = false;
+  for (const seat of room.seatPlan.seats) {
+    const cid = seat.clientId;
+    if (!cid) continue;
+    if (!room.students.has(cid)) {
+      seat.clientId = null;
+      seat.memo = "";
+      seat.url1 = "";
+      seat.url2 = "";
+      touched = true;
+    }
+  }
+  return touched;
+}
+
+/** Teacher "受講者一覧リセット": every seat empty (no clientId, no memo/urls). Seat count unchanged. */
+function wipeSeatPlanAssignments(room) {
+  ensureSeatPlan(room);
+  for (const seat of room.seatPlan.seats) {
+    seat.clientId = null;
+    seat.memo = "";
+    seat.url1 = "";
+    seat.url2 = "";
+  }
+}
+
 // Remove inactive students automatically (ms)
-const STUDENT_TTL_MS = Number(process.env.STUDENT_TTL_MS || 1000 * 60 * 60 * 6); // default 6 hours
+const STUDENT_TTL_MS = Number(process.env.STUDENT_TTL_MS || 1000 * 60 * 60 * 24 * 30); // default 30 days (~1 month)
 const CLEANUP_INTERVAL_MS = Number(process.env.CLEANUP_INTERVAL_MS || 1000 * 60); // default 60s
 
 function getRoom(roomId) {
@@ -307,6 +336,7 @@ function serializeRooms() {
 
 function hydrateRooms(payload) {
   const allRooms = payload?.rooms || {};
+  let prunedAnySeat = false;
   for (const [roomId, raw] of Object.entries(allRooms)) {
     const room = getRoom(roomId);
     room.students.clear();
@@ -333,7 +363,9 @@ function hydrateRooms(payload) {
       seats: Array.isArray(raw?.seatPlan?.seats) ? raw.seatPlan.seats : []
     };
     ensureSeatPlan(room);
+    if (pruneOrphanSeatClients(room)) prunedAnySeat = true;
   }
+  if (prunedAnySeat) schedulePersistState();
 }
 
 async function persistStateNow() {
@@ -378,7 +410,7 @@ async function loadPersistedState() {
   }
 }
 
-// Periodic cleanup for inactive students
+// Periodic cleanup for inactive students; also prune ghost seat clientIds
 setInterval(() => {
   const now = Date.now();
   for (const [roomId, room] of rooms.entries()) {
@@ -390,7 +422,12 @@ setInterval(() => {
         changed = true;
       }
     }
-    if (changed) broadcastSnapshotToTeachers(roomId);
+    const pruned = pruneOrphanSeatClients(room);
+    if (changed || pruned) {
+      broadcastSnapshotToTeachers(roomId);
+      if (pruned) broadcastSeatPlanToTeachers(roomId);
+      schedulePersistState();
+    }
   }
 }, CLEANUP_INTERVAL_MS).unref?.();
 
@@ -484,8 +521,10 @@ wss.on("connection", (ws) => {
       room.students.clear();
       // optionally also unlock name changes on clear
       room.nameLock = false;
+      wipeSeatPlanAssignments(room);
       broadcastToRoom(ws.roomId, { type: "room_state", room: ws.roomId, nameLock: !!room.nameLock });
       broadcastSnapshotToTeachers(ws.roomId);
+      broadcastSeatPlanToTeachers(ws.roomId);
       schedulePersistState();
       return;
     }
@@ -788,19 +827,25 @@ wss.on("connection", (ws) => {
       room.teachers.delete(ws);
     } else if (ws.role === "student" && ws.clientId) {
       const set = room.studentSockets?.get(ws.clientId);
+      let hasOtherStudentSockets = false;
       if (set) {
         set.delete(ws);
+        hasOtherStudentSockets = set.size > 0;
         if (!set.size) room.studentSockets.delete(ws.clientId);
       }
-      const s = room.students.get(ws.clientId);
-      if (s) {
-        s.lastSeen = Date.now();
-        broadcastToTeachers(ws.roomId, {
-          type: "student_left",
-          clientId: ws.clientId,
-          name: s.name,
-          lastSeen: s.lastSeen
-        });
+      // Notify "left" only when ALL tabs/windows for this clientId are closed.
+      if (!hasOtherStudentSockets) {
+        const s = room.students.get(ws.clientId);
+        if (s) {
+          s.lastSeen = Date.now();
+          broadcastToTeachers(ws.roomId, {
+            type: "student_left",
+            clientId: ws.clientId,
+            name: s.name,
+            lastSeen: s.lastSeen
+          });
+        }
+        schedulePersistState();
       }
     }
     room.sockets.delete(ws);

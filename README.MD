@@ -11,6 +11,7 @@
 - 受講者向けのQRコード生成、みんなの作品一覧ページのQRコード
 - 受講者→講師へ「できました」「質問あり」通知
 - 講師が受講者ごとにメモ入力（講師のみ：講師画面を大画面でプレゼン中は全員に見えるので注意）
+- 講師が席（受講者）ごとに **URL1・URL2** を設定し、受講者はヘッダの「URL1」「URL2」ボタンでそのURLを別タブで開ける（講師はCSV一括登録・クリアも可能）
 - 講師→受講者全員へヘッダメッセージ配信（「3時まで休憩」など）
 - 講師が関係資料リンク集を編集（受講者は閲覧：関係資料には関係するあらゆる情報を入れるとよいでしょう）
  
@@ -135,10 +136,23 @@ npm start
 1. GitHub にこのリポジトリを push
 2. Railway で「New Project → Deploy from GitHub repo」
 3. デプロイ完了後、`Settings → Networking → Generate Domain` でURL取得
- 
+
+一度やったらGitHub を更新だけでよい。
+
 取得したURLの例:
 - 受講者: `https://<your-domain>/?room=demo`
 - 講師: `https://<your-domain>/?role=teacher&room=demo`
 - QR: `https://<your-domain>/qr.html?room=demo`（受講者/作品一覧のQR）
  
 詳しい操作は `USERS_GUIDE.MD` を参照してください。
+
+## 環境変数（受講者データの保持・状態ファイル）
+サーバー（`server.js`）では、ルームごとの状態を `data/state.json` に保存します（`STATE_FILE` でパス変更可）。
+
+| 変数 | 既定 | 意味 |
+|------|------|------|
+| `STATE_FILE` | リポジトリ内 `data/state.json` | 永続化ファイルのパス |
+| `STUDENT_TTL_MS` | `2592000000`（30日 ≒ 1ヶ月） | この時間より `lastSeen` が古い受講者をサーバーから削除 |
+| `CLEANUP_INTERVAL_MS` | `60000`（60秒） | 上記のチェックと、座席の無効な割り当ての整理の間隔 |
+
+**受講者一覧リセット**・ゴースト席の整理・表示名まわりの挙動の説明は、`USERS_GUIDE.MD` の **「6. サーバー側の受講者データと席」** を参照してください。
