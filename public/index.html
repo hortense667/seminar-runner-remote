@@ -216,6 +216,7 @@
     .teacher-msg.empty { display:none; }
     .teacher-msg-input { padding:6px 8px; border:1px solid #ccc; border-radius:999px; min-width: 260px; max-width: 520px; }
     .pill { font-size: 11px; padding: 2px 6px; border: 1px solid var(--pill-border); border-radius: 999px; color: var(--pill-text); background: var(--pill-bg); }
+    .student-seat-pill { font-size: 13px; font-weight: 700; padding: 4px 10px; }
     iframe { width: 100%; height: 260px; border: 0; background: var(--panel); }
     .danger { color:#a00; }
     .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.35); z-index: 2000; display:none; padding: 18px; box-sizing: border-box; }
@@ -253,6 +254,7 @@
   <div class="row">
     <label class="muted">ルーム:</label>
     <input id="room" value="demo" style="padding:6px 8px;border:1px solid #ccc;border-radius:8px;" />
+    <span class="pill student-seat-pill" id="studentSeatPill" style="display:none;" title="講師の一覧と同じ並びの番号です。声かけやルーム確認に使えます。"></span>
     <label class="muted" id="nameLabel">なまえ:</label>
     <input id="name" value="" placeholder="任意（例: Tanaka）" style="padding:6px 8px;border:1px solid #ccc;border-radius:8px;" />
     <span class="muted" id="nameHelp"></span>
@@ -527,6 +529,20 @@ console.log('hello');"></textarea>
   const teacherSelId = document.getElementById("teacherSelId");
   const teacherHelpBtn = document.getElementById("teacherHelpBtn");
   const teacherProgramName = document.getElementById("teacherProgramName");
+  const studentSeatPill = document.getElementById("studentSeatPill");
+
+  function clearStudentSeatDisplay() {
+    if (!studentSeatPill) return;
+    studentSeatPill.style.display = "none";
+    studentSeatPill.textContent = "";
+  }
+  function applyStudentSeatFromServer(seatIndex) {
+    if (role !== "student" || !studentSeatPill) return;
+    const n = Number(seatIndex);
+    if (!Number.isInteger(n) || n < 0) return;
+    studentSeatPill.textContent = `出席番号 ${n + 1}`;
+    studentSeatPill.style.display = "inline-block";
+  }
 
   if (role === "teacher") {
     document.body.classList.add("teacher-mode");
@@ -545,6 +561,7 @@ console.log('hello');"></textarea>
     if (studentSignalWrap) studentSignalWrap.style.display = "none";
     if (teacherControlsWrap) teacherControlsWrap.style.display = "flex";
     if (globalLogsCard) globalLogsCard.style.display = "none";
+    clearStudentSeatDisplay();
   } else {
     document.body.classList.remove("teacher-mode");
     if (nameLabelEl) nameLabelEl.textContent = "なまえ:";
@@ -2283,6 +2300,7 @@ ${safeCode}
     const roomChanged = activeRoom && activeRoom !== room;
     activeRoom = room;
     closeSocketSilently();
+    if (role === "student") clearStudentSeatDisplay();
     const connectId = ++activeConnectId;
     if (role === "teacher" && roomChanged) {
       teacherState.clear();
@@ -2352,6 +2370,11 @@ ${safeCode}
         if (role === "teacher" && teacherMsgInput && document.activeElement !== teacherMsgInput) {
           teacherMsgInput.value = m;
         }
+        return;
+      }
+
+      if (msg.type === "seat_assigned" && role === "student") {
+        applyStudentSeatFromServer(msg.seatIndex);
         return;
       }
 
