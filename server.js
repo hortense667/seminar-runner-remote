@@ -290,6 +290,14 @@ function sendToStudent(roomId, clientId, msgObj) {
   }
 }
 
+/** url_update to students: include seatIndex so the client can show 出席番号 even if seat_assigned is dropped. */
+function studentUrlUpdatePayload(room, clientId, url1, url2) {
+  const seatIdx = findSeatIndexByClientId(room, clientId);
+  const o = { type: "url_update", url1: url1 || "", url2: url2 || "" };
+  if (seatIdx >= 0) o.seatIndex = seatIdx;
+  return o;
+}
+
 function broadcastSnapshotToTeachers(roomId) {
   const room = rooms.get(roomId);
   if (!room) return;
@@ -505,10 +513,11 @@ wss.on("connection", (ws) => {
           lastSeen: Date.now()
         });
         broadcastSeatPlanToTeachers(roomId);
-        ws.send(JSON.stringify({ type: "room_state", room: roomId, nameLock: !!room.nameLock }));
+        ws.send(JSON.stringify({ type: "room_state", room: roomId, nameLock: !!room.nameLock, seatIndex }));
         ws.send(JSON.stringify({ type: "resources_state", room: roomId, resources: room.resources || [] }));
         ws.send(JSON.stringify({ type: "teacher_message_state", room: roomId, message: room.teacherMessage || "" }));
-        ws.send(JSON.stringify({ type: "url_update", url1: merged.url1 || "", url2: merged.url2 || "" }));
+        ws.send(JSON.stringify(studentUrlUpdatePayload(room, clientId, merged.url1 || "", merged.url2 || "")));
+        try { ws.send(JSON.stringify({ type: "seat_assigned", seatIndex })); } catch {}
       }
       schedulePersistState();
       return;
@@ -581,7 +590,7 @@ wss.on("connection", (ws) => {
                 url2: s.url2 || "",
                 lastSeen: s.lastSeen
               });
-              sendToStudent(ws.roomId, seat.clientId, { type: "url_update", url1: s.url1 || "", url2: s.url2 || "" });
+              sendToStudent(ws.roomId, seat.clientId, studentUrlUpdatePayload(room, seat.clientId, s.url1 || "", s.url2 || ""));
             }
           }
         }
@@ -668,7 +677,7 @@ wss.on("connection", (ws) => {
           url2: s.url2 || "",
           lastSeen: s.lastSeen
         });
-        sendToStudent(ws.roomId, clientId, { type: "url_update", url1: s.url1 || "", url2: s.url2 || "" });
+        sendToStudent(ws.roomId, clientId, studentUrlUpdatePayload(room, clientId, s.url1 || "", s.url2 || ""));
         schedulePersistState();
         return;
       }
